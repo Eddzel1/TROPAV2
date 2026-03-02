@@ -19,6 +19,7 @@ interface MemberRow {
     birthdate: string;
     sector: FamilyMember['sector'];
     year_level?: string;
+    is_voter?: boolean;
 }
 
 const generateTempId = () => Math.random().toString(36).substr(2, 9);
@@ -32,6 +33,7 @@ const createEmptyRow = (householdLastname?: string): MemberRow => ({
     birthdate: '',
     sector: 'General',
     year_level: '',
+    is_voter: false,
 });
 
 // Format contact number as 09XX-XXX-XXXX
@@ -145,6 +147,7 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 firstname: voter.firstname || row.firstname,
                 lastname: voter.lastname || row.lastname,
                 middlename: voter.middlename || row.middlename,
+                is_voter: true,
             };
         }));
 
@@ -178,7 +181,7 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 age: r.birthdate ? Math.floor((Date.now() - new Date(r.birthdate).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : undefined,
                 sector: r.sector,
                 year_level: r.sector === 'Student' ? r.year_level : undefined,
-                is_voter: false,
+                is_voter: r.is_voter || false,
                 is_household_leader: false,
                 is_cooperative_member: true,
                 membership_date: new Date(),
