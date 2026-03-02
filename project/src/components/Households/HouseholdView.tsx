@@ -1,6 +1,6 @@
 
 import { Household, FamilyMember } from '../../types';
-import { X, Home, MapPin, Users, UserCheck, Phone, Calendar, Shield, User, UserPlus } from 'lucide-react';
+import { X, Home, MapPin, Users, UserCheck, Phone, Calendar, Shield, User, UserPlus, Edit } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 
 interface HouseholdViewProps {
@@ -9,6 +9,7 @@ interface HouseholdViewProps {
   isOpen: boolean;
   onClose: () => void;
   onAddMember: () => void;
+  onEdit: () => void;
 }
 
 const sectorColors: Record<string, string> = {
@@ -21,7 +22,7 @@ const sectorColors: Record<string, string> = {
   'General': 'bg-gray-100 text-gray-700'
 };
 
-export function HouseholdView({ household, members, isOpen, onClose, onAddMember }: HouseholdViewProps) {
+export function HouseholdView({ household, members, isOpen, onClose, onAddMember, onEdit }: HouseholdViewProps) {
   if (!isOpen) return null;
   const householdLeader = members.find(m => m.is_household_leader);
   const cooperativeMembers = members.filter(m => m.is_cooperative_member);
@@ -75,7 +76,7 @@ export function HouseholdView({ household, members, isOpen, onClose, onAddMember
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[householdLeader.sector] || 'bg-gray-100 text-gray-700'}`}>{householdLeader.sector}</span>
+                  <div className="flex flex-wrap gap-1">{(householdLeader.sector || 'General').split(',').map(s => s.trim()).filter(Boolean).map(sector => (<span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>))}</div>
                   {householdLeader.is_cooperative_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">TROPA Member</span>}
                   {householdLeader.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}
                 </div>
@@ -99,7 +100,7 @@ export function HouseholdView({ household, members, isOpen, onClose, onAddMember
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[member.sector] || 'bg-gray-100 text-gray-700'}`}>{member.sector}</span>
+                      <div className="flex flex-wrap gap-1">{(member.sector || 'General').split(',').map(s => s.trim()).filter(Boolean).map(sector => (<span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>))}</div>
                       {member.is_cooperative_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">TROPA Member</span>}
                       {member.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}
                     </div>
@@ -112,6 +113,9 @@ export function HouseholdView({ household, members, isOpen, onClose, onAddMember
             )}
           </div>
           <div className="flex justify-end gap-3 pt-4">
+            <button onClick={onEdit} className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center gap-2">
+              <Edit className="w-4 h-4" /> Edit Household
+            </button>
             <button onClick={onAddMember} className="px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors flex items-center gap-2">
               <UserPlus className="w-4 h-4" /> Add Member
             </button>

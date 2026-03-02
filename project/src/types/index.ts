@@ -24,7 +24,7 @@ export interface FamilyMember {
   lgu: string;
   barangay: string;
   purok: string;
-  sector: 'General' | 'Youth' | 'Student' | 'PWD' | 'Senior Citizen' | 'LGBTQ+' | 'Indigenous People' | 'Solo Parent';
+  sector: string;
 
   is_voter: boolean;
   contact_number?: string;

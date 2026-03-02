@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '../Layout/Header';
 import { HouseholdTable } from './HouseholdTable';
 import { HouseholdView } from './HouseholdView';
-import { Household, FamilyMember } from '../../types';
-import { Search, Info } from 'lucide-react';
+import { HouseholdForm } from './HouseholdForm';
+import { Household, FamilyMember, Location } from '../../types';
+import { Search, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BulkAddMemberForm } from '../Members/BulkAddMemberForm';
-import { Location } from '../../types';
 
 interface HouseholdsProps {
   households: Household[];
@@ -17,20 +17,43 @@ interface HouseholdsProps {
   onMenuClick: () => void;
 }
 
-export function Households({ households, members, onCreateMember, onDeleteHousehold, onMenuClick }: HouseholdsProps) {
+export function Households({ households, members, locations, onCreateMember, onDeleteHousehold, onUpdateHousehold, onMenuClick }: HouseholdsProps) {
   const [viewingHousehold, setViewingHousehold] = useState<Household | undefined>();
+  const [editingHousehold, setEditingHousehold] = useState<Household | undefined>();
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [addMemberHousehold, setAddMemberHousehold] = useState<Household | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLGU, setFilterLGU] = useState('');
+  const [filterBarangay, setFilterBarangay] = useState('');
+  const [sortField, setSortField] = useState<keyof Household>('household_name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const filteredHouseholds = households.filter(household => {
     const matchesSearch = household.household_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       household.lgu.toLowerCase().includes(searchTerm.toLowerCase()) ||
       household.barangay.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = !filterLGU || household.lgu === filterLGU;
-    return matchesSearch && matchesFilter;
+    const matchesLGU = !filterLGU || household.lgu === filterLGU;
+    const matchesBarangay = !filterBarangay || household.barangay === filterBarangay;
+    return matchesSearch && matchesLGU && matchesBarangay;
+  }).sort((a, b) => {
+    let aVal: any = a[sortField];
+    let bVal: any = b[sortField];
+
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
   });
+
+  const totalPages = Math.ceil(filteredHouseholds.length / itemsPerPage);
+  const paginatedHouseholds = filteredHouseholds.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this household?')) {
@@ -58,7 +81,26 @@ export function Households({ households, members, onCreateMember, onDeleteHouseh
     }
   };
 
-  const uniqueLGUs = [...new Set(households.map(h => h.lgu))];
+  const uniqueLGUs = [...new Set(households.map(h => h.lgu))].sort();
+  const formBarangays = locations
+    .filter(l => !filterLGU || l.lgu === filterLGU)
+    .map(l => l.barangay)
+    .filter((value, index, self) => self.indexOf(value) === index)
+    .sort();
+
+  const handleSort = (field: keyof Household) => {
+    if (field === sortField) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterLGU, filterBarangay]);
 
   return (
     <div className="flex-1 bg-gray-50">
@@ -79,17 +121,78 @@ export function Households({ households, members, onCreateMember, onDeleteHouseh
             <input type="text" placeholder="Search households..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-full" />
           </div>
-          <select value={filterLGU} onChange={(e) => setFilterLGU(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500">
-            <option value="">All LGUs</option>
-            {uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}
-          </select>
+          <div className="flex gap-4">
+            <select value={filterLGU} onChange={(e) => { setFilterLGU(e.target.value); setFilterBarangay(''); }}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]">
+              <option value="">All LGUs</option>
+              {uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}
+            </select>
+            <select
+              value={filterBarangay}
+              onChange={(e) => setFilterBarangay(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]"
+            >
+              <option value="">All Barangays</option>
+              {formBarangays.map(b => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
         </div>
-        <HouseholdTable households={filteredHouseholds} members={members} onView={setViewingHousehold} onDelete={handleDelete} onAddMember={handleAddMember} />
+        <HouseholdTable
+          households={paginatedHouseholds}
+          members={members}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          onView={setViewingHousehold}
+          onEdit={setEditingHousehold}
+          onDelete={handleDelete}
+          onAddMember={handleAddMember}
+        />
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredHouseholds.length)}</span> of <span className="font-medium">{filteredHouseholds.length}</span> households
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === page
+                      ? 'bg-teal-600 text-white border border-teal-600'
+                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       {viewingHousehold && (
         <HouseholdView household={viewingHousehold} members={members.filter(m => m.household_id === viewingHousehold.id)}
-          isOpen={!!viewingHousehold} onClose={() => setViewingHousehold(undefined)} onAddMember={() => { setViewingHousehold(undefined); handleAddMember(viewingHousehold); }} />
+          isOpen={!!viewingHousehold} onClose={() => setViewingHousehold(undefined)} onAddMember={() => { setViewingHousehold(undefined); handleAddMember(viewingHousehold); }} onEdit={() => { setViewingHousehold(undefined); setEditingHousehold(viewingHousehold); }} />
       )}
 
       {addMemberHousehold && (
@@ -98,6 +201,16 @@ export function Households({ households, members, onCreateMember, onDeleteHouseh
           isOpen={isAddMemberOpen}
           onClose={() => { setIsAddMemberOpen(false); setAddMemberHousehold(undefined); }}
           onSave={handleSaveBulkMembers}
+        />
+      )}
+
+      {editingHousehold && (
+        <HouseholdForm
+          household={editingHousehold}
+          locations={locations}
+          isOpen={!!editingHousehold}
+          onClose={() => setEditingHousehold(undefined)}
+          onSave={onUpdateHousehold}
         />
       )}
     </div>

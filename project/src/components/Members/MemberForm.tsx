@@ -26,7 +26,7 @@ const emptyForm: Partial<FamilyMember> & { household_name?: string } = {
     sector: 'General',
     is_voter: false,
     is_household_leader: false,
-    is_cooperative_member: false,
+    is_cooperative_member: true,
 };
 
 export function MemberForm({ member, households, locations, isOpen, onClose, onSave, preSelectedHousehold }: MemberFormProps) {
@@ -58,6 +58,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     const voterQueryRef = useRef(voterQuery);
     const voterBarangayRef = useRef(voterBarangay);
     const searchFieldsRef = useRef<('lastname' | 'firstname' | 'middlename')[]>(['lastname', 'firstname']);
+    const [isAddAnother, setIsAddAnother] = useState(false);
 
     // Keep refs in sync with state
     useEffect(() => { voterQueryRef.current = voterQuery; }, [voterQuery]);
@@ -154,11 +155,12 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     if (!isOpen) return null;
 
     // ── Event handlers (plain functions, no hooks) ──
-    const handleSubmit = async (e: React.FormEvent, andAddAnother = false) => {
+    const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await onSave(formData);
-            if (andAddAnother) {
+            const dataToSave = { ...formData, is_cooperative_member: true };
+            await onSave(dataToSave);
+            if (isAddAnother) {
                 // Reset form but retain household and location info
                 setFormData({
                     ...emptyForm,
@@ -263,6 +265,28 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     const handleClearVoter = () => {
         setSelectedVoter(null);
         setFormData(emptyForm);
+    };
+
+    const sectorOptions = ['General', 'Youth', 'Student', 'Senior Citizen', 'PWD', 'LGBTQ+', 'Solo Parent', 'Indigenous People'];
+
+    const handleSectorToggle = (sectorName: string, checked: boolean) => {
+        setFormData(prev => {
+            const currentSectors = prev.sector ? prev.sector.split(',').map(s => s.trim()).filter(Boolean) : [];
+            let newSectors = [...currentSectors];
+
+            if (checked) {
+                if (sectorName === 'General') {
+                    newSectors = ['General'];
+                } else {
+                    newSectors = newSectors.filter(s => s !== 'General');
+                    if (!newSectors.includes(sectorName)) newSectors.push(sectorName);
+                }
+            } else {
+                newSectors = newSectors.filter(s => s !== sectorName);
+                if (newSectors.length === 0) newSectors = ['General'];
+            }
+            return { ...prev, sector: newSectors.join(', ') };
+        });
     };
 
     // ── Computed values ──
@@ -483,13 +507,24 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
 
                 {/* ── MEMBER FORM ── */}
                 {showForm && (
-                    <form onSubmit={handleSubmit} className="p-6">
+                    <form onSubmit={handleFormSubmit} className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                             {/* Personal Information */}
                             <div className="space-y-4 md:col-span-2">
                                 <h3 className="text-sm font-medium text-gray-900 border-b pb-2">Personal Information</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                                        <input
+                                            type="text"
+                                            name="lastname"
+                                            required
+                                            value={formData.lastname || ''}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                        />
+                                    </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                                         <input
@@ -511,17 +546,6 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-                                        <input
-                                            type="text"
-                                            name="lastname"
-                                            required
-                                            value={formData.lastname || ''}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                                        />
-                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -536,10 +560,11 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Birthday *</label>
                                         <input
                                             type="date"
                                             name="birth_date"
+                                            required
                                             value={formData.birth_date
                                                 ? (formData.birth_date instanceof Date
                                                     ? formData.birth_date.toISOString().split('T')[0]
@@ -560,27 +585,24 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className={formData.sector === 'Student' ? 'md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+                                    <div className={(formData.sector || '').includes('Student') ? 'md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3' : 'md:col-span-2'}>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Sector *</label>
-                                            <select
-                                                name="sector"
-                                                required
-                                                value={formData.sector || 'General'}
-                                                onChange={handleInputChange}
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                                            >
-                                                <option value="General">General</option>
-                                                <option value="Youth">Youth</option>
-                                                <option value="Student">Student</option>
-                                                <option value="Senior Citizen">Senior Citizen</option>
-                                                <option value="PWD">PWD</option>
-                                                <option value="LGBTQ+">LGBTQ+</option>
-                                                <option value="Solo Parent">Solo Parent</option>
-                                                <option value="Indigenous People">Indigenous People</option>
-                                            </select>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Sector *</label>
+                                            <div className="flex flex-wrap gap-3">
+                                                {sectorOptions.map(option => (
+                                                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={(formData.sector || 'General').split(',').map(s => s.trim()).includes(option)}
+                                                            onChange={(e) => handleSectorToggle(option, e.target.checked)}
+                                                            className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                                        />
+                                                        <span className="text-sm text-gray-700">{option}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
                                         </div>
-                                        {formData.sector === 'Student' && (
+                                        {(formData.sector || '').includes('Student') && (
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Level *</label>
                                                 <select
@@ -719,16 +741,6 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                     <label className="flex items-center gap-3 cursor-pointer">
                                         <input
                                             type="checkbox"
-                                            name="is_cooperative_member"
-                                            checked={formData.is_cooperative_member || false}
-                                            onChange={handleInputChange}
-                                            className="w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
-                                        />
-                                        <span className="text-sm font-medium text-gray-700">TROPA Member</span>
-                                    </label>
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input
-                                            type="checkbox"
                                             name="is_voter"
                                             checked={formData.is_voter || false}
                                             onChange={handleInputChange}
@@ -750,8 +762,8 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                             </button>
                             {!member && (
                                 <button
-                                    type="button"
-                                    onClick={(e) => handleSubmit(e, true)}
+                                    type="submit"
+                                    onClick={() => setIsAddAnother(true)}
                                     className="px-6 py-2 bg-blue-600 border border-transparent rounded-lg text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center gap-2 font-medium"
                                 >
                                     <Save className="w-5 h-5" />
@@ -760,7 +772,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                             )}
                             <button
                                 type="submit"
-                                onClick={(e) => handleSubmit(e, false)}
+                                onClick={() => setIsAddAnother(false)}
                                 className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors flex items-center gap-2 font-medium"
                             >
                                 <Save className="w-5 h-5" />
@@ -770,6 +782,6 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                     </form>
                 )}
             </div>
-        </div >
+        </div>
     );
 }

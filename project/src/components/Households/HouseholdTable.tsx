@@ -1,25 +1,49 @@
 import { Household, FamilyMember } from '../../types';
-import { Trash2, Users, MapPin, Eye, UserPlus } from 'lucide-react';
+import { Trash2, Users, MapPin, Eye, UserPlus, Edit, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface HouseholdTableProps {
   households: Household[];
   members: FamilyMember[];
+  sortField: keyof Household;
+  sortDirection: 'asc' | 'desc';
+  onSort: (field: keyof Household) => void;
   onView: (household: Household) => void;
+  onEdit: (household: Household) => void;
   onDelete: (id: string) => void;
   onAddMember: (household: Household) => void;
 }
 
-export function HouseholdTable({ households, members, onView, onDelete, onAddMember }: HouseholdTableProps) {
+export function HouseholdTable({ households, members, sortField, sortDirection, onSort, onView, onEdit, onDelete, onAddMember }: HouseholdTableProps) {
+  const SortIcon = ({ field }: { field: keyof Household }) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? <ArrowUp className="w-4 h-4 ml-1 inline-block" /> : <ArrowDown className="w-4 h-4 ml-1 inline-block" />;
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              <th className="text-left p-4 text-sm font-semibold text-gray-900">Household Name</th>
-              <th className="text-left p-4 text-sm font-semibold text-gray-900">Location</th>
+              <th
+                className="text-left p-4 text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => onSort('household_name')}
+              >
+                Household Name <SortIcon field="household_name" />
+              </th>
+              <th
+                className="text-left p-4 text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => onSort('lgu')}
+              >
+                Location <SortIcon field="lgu" />
+              </th>
               <th className="text-left p-4 text-sm font-semibold text-gray-900">Members</th>
-              <th className="text-left p-4 text-sm font-semibold text-gray-900">Status</th>
+              <th
+                className="text-left p-4 text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => onSort('status')}
+              >
+                Status <SortIcon field="status" />
+              </th>
               <th className="text-left p-4 text-sm font-semibold text-gray-900">Actions</th>
             </tr>
           </thead>
@@ -61,6 +85,9 @@ export function HouseholdTable({ households, members, onView, onDelete, onAddMem
                     </button>
                     <button onClick={() => onView(household)} className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View Details">
                       <Eye className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => onEdit(household)} className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit Household">
+                      <Edit className="w-4 h-4" />
                     </button>
                     <button onClick={() => onDelete(household.id)} className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                       <Trash2 className="w-4 h-4" />

@@ -276,26 +276,46 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                                                     type="date"
                                                     value={row.birthdate}
                                                     onChange={e => handleChange(row.id, 'birthdate', e.target.value)}
+                                                    required
                                                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-sans"
                                                 />
                                             </td>
                                             <td className="p-2 align-top">
-                                                <div className="flex flex-col gap-2">
-                                                    <select
-                                                        value={row.sector}
-                                                        onChange={e => handleChange(row.id, 'sector', e.target.value)}
-                                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                                                    >
-                                                        <option value="General">General</option>
-                                                        <option value="Youth">Youth</option>
-                                                        <option value="Student">Student</option>
-                                                        <option value="PWD">PWD</option>
-                                                        <option value="Senior Citizen">Senior Citizen</option>
-                                                        <option value="LGBTQ+">LGBTQ+</option>
-                                                        <option value="Indigenous People">Indigenous People</option>
-                                                        <option value="Solo Parent">Solo Parent</option>
-                                                    </select>
-                                                    {row.sector === 'Student' && (
+                                                <div className="flex flex-col gap-2 relative">
+                                                    <details className="group relative">
+                                                        <summary className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg cursor-pointer list-none flex justify-between items-center bg-white overflow-hidden text-ellipsis whitespace-nowrap">
+                                                            <span>{row.sector || 'General'}</span>
+                                                            <span className="text-gray-400 text-xs">▼</span>
+                                                        </summary>
+                                                        <div className="absolute z-50 w-48 bg-white border border-gray-200 shadow-xl p-2 rounded-lg mt-1 left-0 max-h-48 overflow-y-auto">
+                                                            {['General', 'Youth', 'Student', 'PWD', 'Senior Citizen', 'LGBTQ+', 'Indigenous People', 'Solo Parent'].map(option => (
+                                                                <label key={option} className="flex items-center gap-2 p-1.5 hover:bg-gray-50 cursor-pointer text-sm rounded">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={(row.sector || 'General').split(',').map(s => s.trim()).includes(option)}
+                                                                        onChange={e => {
+                                                                            const currentSectors = row.sector ? row.sector.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                                                            let newSectors = [...currentSectors];
+                                                                            if (e.target.checked) {
+                                                                                if (option === 'General') newSectors = ['General'];
+                                                                                else {
+                                                                                    newSectors = newSectors.filter(s => s !== 'General');
+                                                                                    if (!newSectors.includes(option)) newSectors.push(option);
+                                                                                }
+                                                                            } else {
+                                                                                newSectors = newSectors.filter(s => s !== option);
+                                                                                if (newSectors.length === 0) newSectors = ['General'];
+                                                                            }
+                                                                            handleChange(row.id, 'sector', newSectors.join(', '));
+                                                                        }}
+                                                                        className="w-3.5 h-3.5 text-teal-600 rounded border-gray-300"
+                                                                    />
+                                                                    <span className="text-gray-700">{option}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </details>
+                                                    {(row.sector || '').includes('Student') && (
                                                         <select
                                                             value={row.year_level || ''}
                                                             onChange={e => handleChange(row.id, 'year_level', e.target.value)}

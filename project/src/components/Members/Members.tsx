@@ -30,7 +30,7 @@ export function Members({ members, households, locations, onCreateMember, onUpda
       member.contact_number?.includes(searchTerm) ||
       member.lgu.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.barangay.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSector = !filterSector || member.sector === filterSector;
+    const matchesSector = !filterSector || (member.sector || 'General').split(',').map(s => s.trim()).filter(Boolean).includes(filterSector);
     const matchesHousehold = !filterHousehold || member.household_id === filterHousehold;
     const matchesStatus = !filterStatus ||
       (filterStatus === 'member' && member.is_cooperative_member) ||
@@ -71,7 +71,7 @@ export function Members({ members, households, locations, onCreateMember, onUpda
   const cooperativeMembers = members.filter(m => m.is_cooperative_member).length;
   const householdLeaders = members.filter(m => m.is_household_leader).length;
   const registeredVoters = members.filter(m => m.is_voter).length;
-  const uniqueSectors = [...new Set(members.map(m => m.sector))];
+  const uniqueSectors = [...new Set(members.flatMap(m => (m.sector || 'General').split(',').map(s => s.trim()).filter(Boolean)))].sort();
   const uniqueHouseholds = households.map(h => ({ id: h.id, name: h.household_name }));
 
   return (

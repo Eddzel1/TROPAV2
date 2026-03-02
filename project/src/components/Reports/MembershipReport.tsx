@@ -17,7 +17,13 @@ export function MembershipReport({ households, members, payments, summaryStats }
     if (member.age < 18) group = 'Under 18'; else if (member.age < 30) group = '18-29'; else if (member.age < 45) group = '30-44'; else if (member.age < 60) group = '45-59'; else group = '60+';
     acc[group] = (acc[group] || 0) + 1; return acc;
   }, {} as Record<string, number>);
-  const sectorDistribution = members.reduce((acc, member) => { acc[member.sector] = (acc[member.sector] || 0) + 1; return acc; }, {} as Record<string, number>);
+  const sectorDistribution = members.reduce((acc, member) => {
+    const sectors = member.sector ? member.sector.split(',').map(s => s.trim()).filter(Boolean) : ['General'];
+    sectors.forEach(sector => {
+      acc[sector] = (acc[sector] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
   const householdSizes = households.reduce((acc, household) => {
     const size = members.filter(m => m.household_id === household.id).length; let group = 'Unknown';
     if (size === 1) group = '1 member'; else if (size <= 3) group = '2-3 members'; else if (size <= 5) group = '4-5 members'; else group = '6+ members';

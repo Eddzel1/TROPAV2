@@ -51,7 +51,8 @@ export function MembersMap({ members }: MembersMapProps) {
     markersRef.current = [];
     membersWithCoordinates.forEach(member => {
       if (!member.latitude || !member.longitude) return;
-      const color = sectorColors[member.sector] || sectorColors['General'];
+      const firstSector = member.sector ? member.sector.split(',').map(s => s.trim()).filter(Boolean)[0] : 'General';
+      const color = sectorColors[firstSector] || sectorColors['General'];
       const circleMarker = L.circleMarker([member.latitude, member.longitude], {
         radius: 8, fillColor: color, color: '#ffffff', weight: 2, opacity: 1, fillOpacity: 0.8
       });
@@ -129,7 +130,7 @@ export function MembersMap({ members }: MembersMapProps) {
           <div className="text-sm font-medium text-gray-700 mb-3">Sector Legend:</div>
           <div className="flex flex-wrap gap-3">
             {Object.entries(sectorColors).map(([sector, color]) => {
-              const count = membersWithCoordinates.filter(m => m.sector === sector).length;
+              const count = membersWithCoordinates.filter(m => (m.sector || 'General').split(',').map(s => s.trim()).filter(Boolean).includes(sector)).length;
               if (count === 0) return null;
               return (
                 <div key={sector} className="flex items-center gap-2">
