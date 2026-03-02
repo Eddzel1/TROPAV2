@@ -1,10 +1,9 @@
-import React from 'react';
-import { DivideIcon as LucideIcon } from 'lucide-react';
+// import { DivideIcon as LucideIcon } from 'lucide-react';
 
 interface StatCardProps {
   title: string;
   value: string | number;
-  icon: LucideIcon;
+  icon: any;
   color: 'blue' | 'green' | 'teal' | 'purple' | 'orange';
   trend?: { value: number; isPositive: boolean; };
 }

@@ -16,7 +16,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { households, createHousehold, updateHousehold, deleteHousehold, refetch: refetchHouseholds } = useHouseholds();
+  const { households, updateHousehold, deleteHousehold, refetch: refetchHouseholds } = useHouseholds();
   const { members, createMember, updateMember, deleteMember } = useFamilyMembers();
   const { payments, createPayment, updatePayment, deletePayment } = useDuesPayments();
   const { users, createUser, updateUser, deleteUser } = useUsers();
@@ -78,13 +78,13 @@ function App() {
             members={members}
             locations={locations}
             onCreateMember={async (member) => {
-              const newMember = await createMember(member);
+              const newMember = await createMember(member as any);
               if (member.is_household_leader) {
                 refetchHouseholds();
               }
-              return newMember;
+              return newMember as any;
             }}
-            onUpdateHousehold={updateHousehold}
+            onUpdateHousehold={async (id, h) => updateHousehold(id, { ...h, created_date: h.created_date ? h.created_date.toISOString() : undefined } as any) as any}
             onDeleteHousehold={deleteHousehold}
             onMenuClick={() => setSidebarOpen(true)}
           />
@@ -96,13 +96,13 @@ function App() {
             households={households}
             locations={locations}
             onCreateMember={async (member) => {
-              const newMember = await createMember(member);
+              const newMember = await createMember(member as any);
               if (member.is_household_leader) {
                 refetchHouseholds();
               }
-              return newMember;
+              return newMember as any;
             }}
-            onUpdateMember={updateMember}
+            onUpdateMember={async (id, m) => updateMember(id, { ...m, membership_date: m.membership_date ? m.membership_date.toISOString() : undefined, birth_date: m.birth_date ? m.birth_date.toISOString() : undefined } as any) as any}
             onDeleteMember={deleteMember}
             onMenuClick={() => setSidebarOpen(true)}
           />
@@ -113,8 +113,8 @@ function App() {
             payments={payments}
             members={members}
             households={households}
-            onCreatePayment={createPayment}
-            onUpdatePayment={updatePayment}
+            onCreatePayment={async (p) => createPayment({ ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : new Date().toISOString() } as any) as any}
+            onUpdatePayment={async (id, p) => updatePayment(id, { ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : undefined } as any) as any}
             onDeletePayment={deletePayment}
             onMenuClick={() => setSidebarOpen(true)}
           />
@@ -134,11 +134,11 @@ function App() {
           <Settings
             users={users}
             locations={locations}
-            onCreateUser={createUser}
-            onUpdateUser={updateUser}
+            onCreateUser={async (u) => createUser({ ...u, last_login: u.last_login ? u.last_login.toISOString() : null } as any) as any}
+            onUpdateUser={async (id, u) => updateUser(id, { ...u, last_login: u.last_login ? u.last_login.toISOString() : undefined } as any) as any}
             onDeleteUser={deleteUser}
-            onCreateLocation={createLocation}
-            onUpdateLocation={updateLocation}
+            onCreateLocation={async (loc) => createLocation({ ...loc, created_date: new Date().toISOString(), updated_date: new Date().toISOString() } as any) as any}
+            onUpdateLocation={async (id, loc) => updateLocation(id, { ...loc, created_date: undefined } as any) as any}
             onDeleteLocation={deleteLocation}
             onMenuClick={() => setSidebarOpen(true)}
           />

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Header } from '../Layout/Header';
 import { MembershipReport } from './MembershipReport';
 import { PaymentReport } from './PaymentReport';

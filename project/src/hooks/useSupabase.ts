@@ -57,7 +57,7 @@ export function useHouseholds() {
                 lgu: newHousehold.lgu,
                 barangay: newHousehold.barangay,
                 purok: newHousehold.purok,
-                household_leader_id: newHousehold.household_leader_id || undefined,
+                // household_leader_id: newHousehold.household_leader_id || undefined,
                 total_members: newHousehold.total_members,
                 active_members: newHousehold.active_members,
                 status: newHousehold.status as 'active' | 'inactive',
@@ -88,7 +88,7 @@ export function useHouseholds() {
                 lgu: updatedHousehold.lgu,
                 barangay: updatedHousehold.barangay,
                 purok: updatedHousehold.purok,
-                household_leader_id: updatedHousehold.household_leader_id || undefined,
+                // household_leader_id: updatedHousehold.household_leader_id || undefined,
                 total_members: updatedHousehold.total_members,
                 active_members: updatedHousehold.active_members,
                 status: updatedHousehold.status as 'active' | 'inactive',
@@ -285,7 +285,7 @@ export function useFamilyMembers(householdId?: string) {
                 profile_picture_path: finalMemberData.profile_picture_path || undefined,
                 created_date: new Date(finalMemberData.created_date),
                 updated_date: new Date(finalMemberData.updated_date),
-                created_by: finalMemberData.created_by
+                // created_by: finalMemberData.created_by
             };
             setMembers(prev => [transformedMember, ...prev]);
             return finalMemberData;
@@ -331,7 +331,7 @@ export function useFamilyMembers(householdId?: string) {
                 profile_picture_path: updatedMember.profile_picture_path || undefined,
                 created_date: new Date(updatedMember.created_date),
                 updated_date: new Date(updatedMember.updated_date),
-                created_by: updatedMember.created_by
+                // created_by: updatedMember.created_by
             };
             setMembers(prev => prev.map(m => m.id === id ? transformedMember : m));
             return updatedMember;
@@ -568,7 +568,7 @@ export function useUsers() {
                 permissions: newUser.permissions,
                 created_date: new Date(newUser.created_date),
                 updated_date: new Date(newUser.updated_date),
-                created_by: newUser.created_by
+                // created_by: newUser.created_by
             };
 
             setUsers(prev => [transformedUser, ...prev]);
@@ -595,7 +595,7 @@ export function useUsers() {
                 permissions: updatedUser.permissions,
                 created_date: new Date(updatedUser.created_date),
                 updated_date: new Date(updatedUser.updated_date),
-                created_by: updatedUser.created_by
+                // created_by: updatedUser.created_by
             };
             setUsers(prev => prev.map(u => u.id === id ? transformedUser : u));
             return updatedUser;

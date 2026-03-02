@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { FamilyMember } from '../../types';
 import { Map, MapPin, Maximize2, Users } from 'lucide-react';
 import L from 'leaflet';
@@ -22,11 +22,10 @@ export function MembersMap({ members }: MembersMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const membersWithCoordinates = members.filter(
     m => m.latitude !== null && m.latitude !== undefined &&
-         m.longitude !== null && m.longitude !== undefined
+      m.longitude !== null && m.longitude !== undefined
   );
 
   useEffect(() => {
@@ -84,9 +83,9 @@ export function MembersMap({ members }: MembersMapProps) {
     if (!mapRef.current?.parentElement) return;
     const container = mapRef.current.parentElement;
     if (!document.fullscreenElement) {
-      container.requestFullscreen().then(() => { setIsFullscreen(true); setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100); });
+      container.requestFullscreen().then(() => { setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100); });
     } else {
-      document.exitFullscreen().then(() => { setIsFullscreen(false); setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100); });
+      document.exitFullscreen().then(() => { setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100); });
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Header } from '../Layout/Header';
 import { UserTable } from './UserTable';
 import { UserForm } from './UserForm';

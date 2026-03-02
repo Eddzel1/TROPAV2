@@ -1,4 +1,3 @@
-import React from 'react';
 import { DuesPayment, FamilyMember } from '../../types';
 import { Calendar, User, CreditCard } from 'lucide-react';
 

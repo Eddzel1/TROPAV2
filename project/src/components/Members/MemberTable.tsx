@@ -1,7 +1,5 @@
-import React from 'react';
-import { FamilyMember, Household } from '../../types';
+import { FamilyMember } from '../../types';
 import { Edit, Trash2, User, Phone, MapPin, Calendar, Shield } from 'lucide-react';
-import { formatDate } from '../../lib/utils';
 
 interface MemberTableProps {
   members: FamilyMember[];
@@ -9,7 +7,7 @@ interface MemberTableProps {
   onDelete: (id: string) => void;
 }
 
-const sectorColors = { 'Youth': 'bg-blue-100 text-blue-700', 'PWD': 'bg-purple-100 text-purple-700', 'Senior Citizen': 'bg-orange-100 text-orange-700', 'LGBTQ+': 'bg-pink-100 text-pink-700', 'Indigenous People': 'bg-green-100 text-green-700', 'Solo Parent': 'bg-yellow-100 text-yellow-700', 'General': 'bg-gray-100 text-gray-700' };
+const sectorColors: Record<string, string> = { 'Youth': 'bg-blue-100 text-blue-700', 'Student': 'bg-indigo-100 text-indigo-800', 'College Student': 'bg-indigo-100 text-indigo-800', 'PWD': 'bg-purple-100 text-purple-700', 'Senior Citizen': 'bg-orange-100 text-orange-700', 'LGBTQ+': 'bg-pink-100 text-pink-700', 'Indigenous People': 'bg-green-100 text-green-700', 'Solo Parent': 'bg-yellow-100 text-yellow-700', 'General': 'bg-gray-100 text-gray-700' };
 
 export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
   return (

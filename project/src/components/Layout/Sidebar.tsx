@@ -1,5 +1,4 @@
-import React from 'react';
-import { LayoutDashboard, Home, Users, CreditCard, FileText, MapPin, Settings, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, Home, Users, CreditCard, FileText, Settings, LogOut, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 function cn(...classes: (string | undefined | null | false)[]) {

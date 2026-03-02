@@ -1,4 +1,3 @@
-import React from 'react';
 import { FamilyMember, Household, DuesPayment } from '../../types';
 import { User, AlertCircle, CreditCard, DollarSign } from 'lucide-react';
 import { getOutstandingMonths, formatMonthName, formatCurrency } from '../../lib/utils';

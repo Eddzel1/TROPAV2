@@ -5,7 +5,7 @@ import { PaymentForm } from './PaymentForm';
 import { UnpaidMembersTable } from './UnpaidMembersTable';
 import { DuesPayment, FamilyMember, Household } from '../../types';
 import { Plus, Search, CreditCard, DollarSign, Calendar, AlertCircle } from 'lucide-react';
-import { generateMonthRange, getOutstandingMonths } from '../../lib/utils';
+import { getOutstandingMonths } from '../../lib/utils';
 
 interface DuesCollectionProps {
   payments: DuesPayment[];

@@ -1,4 +1,3 @@
-import React from 'react';
 import { User } from '../../types';
 import { Edit, Trash2, Shield, User as UserIcon, Clock } from 'lucide-react';
 import { formatDate } from '../../lib/utils';

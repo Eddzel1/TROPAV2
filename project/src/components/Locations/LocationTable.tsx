@@ -1,4 +1,3 @@
-import React from 'react';
 import { Location } from '../../types';
 import { Edit, Trash2, MapPin } from 'lucide-react';
 import { formatDate } from '../../lib/utils';

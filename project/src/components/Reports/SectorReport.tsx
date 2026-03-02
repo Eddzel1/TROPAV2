@@ -1,10 +1,10 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { FamilyMember, Household } from '../../types';
 import { PieChart, Calendar } from 'lucide-react';
 
 interface SectorReportProps { members: FamilyMember[]; households: Household[]; }
 
-export function SectorReport({ members, households }: SectorReportProps) {
+export function SectorReport({ members }: SectorReportProps) {
   const sectorStats = useMemo(() => {
     const stats = members.reduce((acc, member) => {
       if (!acc[member.sector]) acc[member.sector] = { total:0, cooperativeMembers:0, voters:0, householdLeaders:0, ageSum:0, ageCount:0, households:new Set<string>() };

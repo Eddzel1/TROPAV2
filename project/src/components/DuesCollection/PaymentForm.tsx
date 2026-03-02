@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DuesPayment, FamilyMember, Household } from '../../types';
-import { X, Save, CreditCard, Calendar, User, DollarSign, Search, Check, AlertCircle } from 'lucide-react';
+import { X, Save, CreditCard, User, DollarSign, Search, Check, AlertCircle } from 'lucide-react';
 import { getOutstandingMonths, generateMonthRange } from '../../lib/utils';
 
 interface PaymentFormProps {
