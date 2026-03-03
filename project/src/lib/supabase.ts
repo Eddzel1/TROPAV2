@@ -40,9 +40,30 @@ export const supabaseHelpers = {
   },
 
   async getHouseholds() {
-    const { data, error } = await supabase.from('households').select('*').order('created_date', { ascending: false });
-    if (error) throw error;
-    return data;
+    let allData: any[] = [];
+    const limit = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('households')
+        .select('*')
+        .order('created_date', { ascending: false })
+        .range(from, from + limit - 1);
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+        from += limit;
+      } else {
+        hasMore = false;
+      }
+      if (data && data.length < limit) {
+        hasMore = false;
+      }
+    }
+    return allData;
   },
 
   async createHousehold(household: Omit<Database['public']['Tables']['households']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
@@ -64,11 +85,28 @@ export const supabaseHelpers = {
   },
 
   async getFamilyMembers(householdId?: string) {
-    let query = supabase.from('family_members').select(`*, household:households!family_members_household_id_fkey(household_name, lgu, barangay, purok)`).order('created_date', { ascending: false });
-    if (householdId) { query = query.eq('household_id', householdId); }
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
+    let allData: any[] = [];
+    const limit = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase.from('family_members').select(`*, household:households!family_members_household_id_fkey(household_name, lgu, barangay, purok)`).order('created_date', { ascending: false }).range(from, from + limit - 1);
+      if (householdId) { query = query.eq('household_id', householdId); }
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+        from += limit;
+      } else {
+        hasMore = false;
+      }
+      if (data && data.length < limit) {
+        hasMore = false;
+      }
+    }
+    return allData;
   },
 
   async createFamilyMember(member: Omit<Database['public']['Tables']['family_members']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
@@ -90,12 +128,29 @@ export const supabaseHelpers = {
   },
 
   async getDuesPayments(memberId?: string, householdId?: string) {
-    let query = supabase.from('dues_payments').select(`*, member:family_members(firstname, lastname), household:households(household_name)`).order('payment_date', { ascending: false });
-    if (memberId) { query = query.eq('member_id', memberId); }
-    if (householdId) { query = query.eq('household_id', householdId); }
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
+    let allData: any[] = [];
+    const limit = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase.from('dues_payments').select(`*, member:family_members(firstname, lastname), household:households(household_name)`).order('payment_date', { ascending: false }).range(from, from + limit - 1);
+      if (memberId) { query = query.eq('member_id', memberId); }
+      if (householdId) { query = query.eq('household_id', householdId); }
+      const { data, error } = await query;
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+        from += limit;
+      } else {
+        hasMore = false;
+      }
+      if (data && data.length < limit) {
+        hasMore = false;
+      }
+    }
+    return allData;
   },
 
   async createDuesPayment(payment: Omit<Database['public']['Tables']['dues_payments']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
@@ -174,40 +229,28 @@ export const supabaseHelpers = {
   },
 
   async searchVoters(
-    query: string,
+    lastname: string,
+    firstname: string,
+    middlename: string,
     lgu?: string,
-    brgy?: string,
-    fields: ('lastname' | 'firstname' | 'middlename')[] = ['lastname', 'firstname']
+    brgy?: string
   ) {
-    if (!query || query.trim().length < 2) return [];
-    const q = query.trim();
-    const activeFields = fields.length > 0 ? fields : ['lastname', 'firstname'];
-    const orFilter = activeFields.map(f => `${f}.ilike.%${q}%`).join(',');
+    if ((!lastname || lastname.trim().length < 2) && (!firstname || firstname.trim().length < 2) && (!middlename || middlename.trim().length < 2)) return [];
+
     let dbQuery = supabase
       .from('voters')
-      .select('id, classification, lastname, firstname, ext, middlename, purok, brgy, lgu, district, precinct, clusteredprecinct, status')
-      .or(orFilter);
+      .select('id, classification, lastname, firstname, ext, middlename, purok, brgy, lgu, district, precinct, clusteredprecinct, status');
+
+    if (lastname && lastname.trim().length >= 2) dbQuery = dbQuery.ilike('lastname', `%${lastname.trim()}%`);
+    if (firstname && firstname.trim().length >= 2) dbQuery = dbQuery.ilike('firstname', `%${firstname.trim()}%`);
+    if (middlename && middlename.trim().length >= 2) dbQuery = dbQuery.ilike('middlename', `%${middlename.trim()}%`);
+
     if (lgu) dbQuery = dbQuery.ilike('lgu', lgu);
     if (brgy) dbQuery = dbQuery.ilike('brgy', brgy);
 
-    // Dynamic sort order based on selected search fields
-    const hasMiddlename = activeFields.includes('middlename');
-    const hasLastname = activeFields.includes('lastname');
-    const hasFirstname = activeFields.includes('firstname');
-
-    if (hasMiddlename) {
-      // middlename selected → sort by middlename, lastname, firstname
-      dbQuery = dbQuery.order('middlename').order('lastname').order('firstname');
-    } else if (hasLastname && !hasFirstname) {
-      // only lastname selected → sort by firstname
-      dbQuery = dbQuery.order('firstname');
-    } else if (hasFirstname && !hasLastname) {
-      // only firstname selected → sort by lastname
-      dbQuery = dbQuery.order('lastname');
-    } else {
-      // default (lastname + firstname) → sort by lastname, firstname
-      dbQuery = dbQuery.order('lastname').order('firstname');
-    }
+    if (lastname) dbQuery = dbQuery.order('lastname', { ascending: true });
+    if (firstname) dbQuery = dbQuery.order('firstname', { ascending: true });
+    if (middlename) dbQuery = dbQuery.order('middlename', { ascending: true });
 
     const { data, error } = await dbQuery.limit(100);
     if (error) throw error;

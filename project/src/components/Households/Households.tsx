@@ -102,8 +102,32 @@ export function Households({ households, members, locations, onCreateMember, onD
     setCurrentPage(1);
   }, [searchTerm, filterLGU, filterBarangay]);
 
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
   return (
-    <div className="flex-1 bg-gray-50">
+    <div className="flex-1 bg-gray-50 min-h-0 overflow-auto">
       <Header title="Households" subtitle="View and manage registered households" onMenuClick={onMenuClick} />
       <div className="p-6">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -166,13 +190,16 @@ export function Households({ households, members, locations, onCreateMember, onD
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                {getPageNumbers().map((page, index) => (
                   <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === page
-                      ? 'bg-teal-600 text-white border border-teal-600'
-                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    key={`${page}-${index}`}
+                    onClick={() => typeof page === 'number' ? setCurrentPage(page) : null}
+                    disabled={page === '...'}
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${page === '...'
+                      ? 'cursor-default text-gray-500'
+                      : currentPage === page
+                        ? 'bg-teal-600 text-white border border-teal-600'
+                        : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
                       }`}
                   >
                     {page}

@@ -55,14 +55,12 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
     // Voter Search Modal State
     const [searchModalOpen, setSearchModalOpen] = useState(false);
     const [activeRowId, setActiveRowId] = useState<string | null>(null);
-    const [voterQuery, setVoterQuery] = useState('');
+    const [voterLastName, setVoterLastName] = useState('');
+    const [voterFirstName, setVoterFirstName] = useState('');
+    const [voterMiddleName, setVoterMiddleName] = useState('');
     const [voterResults, setVoterResults] = useState<Voter[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
-    // Using local search fields (similar to MemberForm)
-    const [searchLastname, setSearchLastname] = useState(true);
-    const [searchFirstname, setSearchFirstname] = useState(true);
-    const [searchMiddlename, setSearchMiddlename] = useState(false);
     const [voterLgu] = useState('VALENCIA CITY');
     const [voterBarangay] = useState('');
 
@@ -106,28 +104,25 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
         setActiveRowId(id);
         const row = rows.find(r => r.id === id);
         // Pre-fill query with lastname if available
-        setVoterQuery(row?.lastname || '');
+        setVoterLastName(row?.lastname || '');
+        setVoterFirstName(row?.firstname || '');
+        setVoterMiddleName(row?.middlename || '');
         setVoterResults([]);
         setSearchModalOpen(true);
     };
 
     const runSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (voterQuery.trim().length < 2) return;
+        if (voterLastName.trim().length < 2 && voterFirstName.trim().length < 2 && voterMiddleName.trim().length < 2) return;
 
         setIsSearching(true);
         try {
-            const fields: ('lastname' | 'firstname' | 'middlename')[] = [];
-            if (searchLastname) fields.push('lastname');
-            if (searchFirstname) fields.push('firstname');
-            if (searchMiddlename) fields.push('middlename');
-            if (fields.length === 0) fields.push('lastname');
-
             const results = await supabaseHelpers.searchVoters(
-                voterQuery.trim(),
+                voterLastName.trim(),
+                voterFirstName.trim(),
+                voterMiddleName.trim(),
                 voterLgu || undefined,
-                voterBarangay || undefined,
-                fields
+                voterBarangay || undefined
             );
             setVoterResults(results as Voter[]);
         } catch (err) {
@@ -400,41 +395,45 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                             </button>
                         </div>
                         <div className="p-4 border-b border-gray-100 bg-gray-50">
-                            <form onSubmit={runSearch} className="flex gap-2 mb-3">
-                                <input
-                                    type="text"
-                                    value={voterQuery}
-                                    onChange={(e) => setVoterQuery(e.target.value)}
-                                    placeholder="Search name..."
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                                    autoFocus
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={isSearching || voterQuery.length < 2}
-                                    className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2"
-                                >
-                                    <Search className="w-4 h-4" />
-                                    {isSearching ? 'Searching...' : 'Search'}
-                                </button>
+                            <form onSubmit={runSearch} className="flex flex-col gap-3 mb-1">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <input
+                                        type="text"
+                                        value={voterLastName}
+                                        onChange={(e) => setVoterLastName(e.target.value)}
+                                        placeholder="Last name..."
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 whitespace-nowrap text-sm"
+                                        autoFocus
+                                    />
+                                    <input
+                                        type="text"
+                                        value={voterFirstName}
+                                        onChange={(e) => setVoterFirstName(e.target.value)}
+                                        placeholder="First name..."
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 whitespace-nowrap text-sm"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={voterMiddleName}
+                                        onChange={(e) => setVoterMiddleName(e.target.value)}
+                                        placeholder="Middle name..."
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 whitespace-nowrap text-sm"
+                                    />
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        type="submit"
+                                        disabled={isSearching || (voterLastName.length < 2 && voterFirstName.length < 2 && voterMiddleName.length < 2)}
+                                        className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2 text-sm font-medium"
+                                    >
+                                        <Search className="w-4 h-4" />
+                                        {isSearching ? 'Searching...' : 'Search'}
+                                    </button>
+                                </div>
                             </form>
-                            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                                <label className="flex items-center gap-2">
-                                    <input type="checkbox" checked={searchLastname} onChange={e => setSearchLastname(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
-                                    Last Name
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    <input type="checkbox" checked={searchFirstname} onChange={e => setSearchFirstname(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
-                                    First Name
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    <input type="checkbox" checked={searchMiddlename} onChange={e => setSearchMiddlename(e.target.checked)} className="rounded text-teal-600 focus:ring-teal-500" />
-                                    Middle Name
-                                </label>
-                            </div>
                         </div>
                         <div className="p-4 overflow-y-auto flex-1">
-                            {voterResults.length === 0 && !isSearching && voterQuery.length >= 2 && (
+                            {voterResults.length === 0 && !isSearching && (voterLastName.length >= 2 || voterFirstName.length >= 2) && (
                                 <div className="text-center text-gray-500 py-8">No records found. Try adjusting your search.</div>
                             )}
                             {voterResults.length > 0 && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FamilyMember, Household, Location, Voter } from '../../types';
-import { X, Save, Search, UserCheck, ChevronRight } from 'lucide-react';
+import { X, Save, Search, UserCheck, Info } from 'lucide-react';
 import { supabaseHelpers } from '../../lib/supabase';
 
 interface MemberFormProps {
@@ -33,20 +33,18 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     const [formData, setFormData] = useState<Partial<FamilyMember> & { household_name?: string }>(emptyForm);
 
     // ── Voter search state ──
-    const [voterQuery, setVoterQuery] = useState('');
+    const [voterLastName, setVoterLastName] = useState('');
+    const [voterFirstName, setVoterFirstName] = useState('');
+    const [voterMiddleName, setVoterMiddleName] = useState('');
+
     const [voterResults, setVoterResults] = useState<Voter[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchError, setSearchError] = useState('');
     const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
     const [searchSkipped, setSearchSkipped] = useState(false);
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [highlightedIndex, setHighlightedIndex] = useState(-1);
-    const listItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-    // Search field toggle checkboxes
-    const [searchLastname, setSearchLastname] = useState(true);
-    const [searchFirstname, setSearchFirstname] = useState(true);
-    const [searchMiddlename, setSearchMiddlename] = useState(false);
+    // Background match indicator state
+    const [possibleMatches, setPossibleMatches] = useState<Voter[]>([]);
 
     // LGU / Barangay filter for voter search
     const [voterLgu, setVoterLgu] = useState('VALENCIA CITY');
@@ -54,22 +52,17 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
 
     // Refs so debounced callback always reads latest values
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-    const voterQueryRef = useRef(voterQuery);
+    const voterLastNameRef = useRef(voterLastName);
+    const voterFirstNameRef = useRef(voterFirstName);
+    const voterMiddleNameRef = useRef(voterMiddleName);
     const voterBarangayRef = useRef(voterBarangay);
-    const searchFieldsRef = useRef<('lastname' | 'firstname' | 'middlename')[]>(['lastname', 'firstname']);
     const [isAddAnother, setIsAddAnother] = useState(false);
 
     // Keep refs in sync with state
-    useEffect(() => { voterQueryRef.current = voterQuery; }, [voterQuery]);
+    useEffect(() => { voterLastNameRef.current = voterLastName; }, [voterLastName]);
+    useEffect(() => { voterFirstNameRef.current = voterFirstName; }, [voterFirstName]);
+    useEffect(() => { voterMiddleNameRef.current = voterMiddleName; }, [voterMiddleName]);
     useEffect(() => { voterBarangayRef.current = voterBarangay; }, [voterBarangay]);
-    useEffect(() => {
-        const fields: ('lastname' | 'firstname' | 'middlename')[] = [];
-        if (searchLastname) fields.push('lastname');
-        if (searchFirstname) fields.push('firstname');
-        if (searchMiddlename) fields.push('middlename');
-        searchFieldsRef.current = fields.length > 0 ? fields : ['lastname'];
-    }, [searchLastname, searchFirstname, searchMiddlename]);
 
     const isAddMode = !member;
 
@@ -90,52 +83,36 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         } else {
             setFormData(emptyForm);
         }
-        setVoterQuery('');
+        setVoterLastName('');
+        setVoterFirstName('');
+        setVoterMiddleName('');
         setVoterResults([]);
         setSelectedVoter(null);
         setSearchSkipped(false);
-        setShowDropdown(false);
-        setHighlightedIndex(-1);
         setSearchError('');
         setVoterLgu('VALENCIA CITY');
         setVoterBarangay('');
-        setSearchLastname(true);
-        setSearchFirstname(true);
-        setSearchMiddlename(false);
-        searchFieldsRef.current = ['lastname', 'firstname'];
+        setPossibleMatches([]);
     }, [member, isOpen]);
 
-    // Close dropdown on outside click
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-                setShowDropdown(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
     // ── Search runner — uses refs so it's always fresh ──
-    const runSearch = (query: string, lgu: string, barangay: string) => {
+    const runSearch = (lname: string, fname: string, mname: string, lgu: string, barangay: string) => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        if (query.trim().length < 2) {
+        if (lname.trim().length < 2 && fname.trim().length < 2 && mname.trim().length < 2) {
             setVoterResults([]);
-            setShowDropdown(false);
             return;
         }
         debounceRef.current = setTimeout(async () => {
             setIsSearching(true);
             try {
                 const results = await supabaseHelpers.searchVoters(
-                    query.trim(),
+                    lname.trim(),
+                    fname.trim(),
+                    mname.trim(),
                     lgu || undefined,
-                    barangay || undefined,
-                    searchFieldsRef.current
+                    barangay || undefined
                 );
                 setVoterResults(results as Voter[]);
-                setShowDropdown(results.length > 0);
-                setHighlightedIndex(-1);
                 if (results.length === 0) setSearchError('No voter record found.');
                 else setSearchError('');
             } catch (err) {
@@ -144,12 +121,40 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 const msg = pgErr?.message || (err instanceof Error ? err.message : 'Unknown error — check browser console');
                 setSearchError(`Search failed: ${msg}`);
                 setVoterResults([]);
-                setShowDropdown(false);
             } finally {
                 setIsSearching(false);
             }
         }, 400);
     };
+
+    // ── Background match checking ──
+    useEffect(() => {
+        if (!isAddMode || selectedVoter || !searchSkipped) {
+            setPossibleMatches([]);
+            return;
+        }
+
+        const ln = (formData.lastname || '').trim();
+        const fn = (formData.firstname || '').trim();
+        const mn = (formData.middlename || '').trim();
+
+        if (ln.length < 2 || fn.length < 2) {
+            setPossibleMatches([]);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            try {
+                // Check anywhere in database, regardless of LGU/Barangay filter
+                const results = await supabaseHelpers.searchVoters(ln, fn, mn, undefined, undefined);
+                setPossibleMatches(results as Voter[]);
+            } catch (err) {
+                console.error("Match check error", err);
+            }
+        }, 600);
+
+        return () => clearTimeout(timer);
+    }, [formData.lastname, formData.firstname, formData.middlename, isAddMode, selectedVoter, searchSkipped]);
 
     // ── All hooks must be above this line ──
     if (!isOpen) return null;
@@ -171,13 +176,14 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                     purok: formData.purok,
                     is_household_leader: false
                 });
-                setVoterQuery('');
+                setVoterLastName('');
+                setVoterFirstName('');
+                setVoterMiddleName('');
                 setVoterResults([]);
                 setSelectedVoter(null);
                 setSearchSkipped(false);
-                setShowDropdown(false);
-                setHighlightedIndex(-1);
                 setSearchError('');
+                setPossibleMatches([]);
             }
         } catch (error) {
             console.error('Failed to save:', error);
@@ -212,11 +218,29 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         }
     };
 
-    const handleVoterQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const q = e.target.value;
-        setVoterQuery(q);
+    const handleVoterNameChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'lastname' | 'firstname' | 'middlename') => {
+        const val = e.target.value;
         setSearchError('');
-        runSearch(q, voterLgu, voterBarangayRef.current);
+
+        // Optimistic state updates
+        let lname = voterLastNameRef.current;
+        let fname = voterFirstNameRef.current;
+        let mname = voterMiddleNameRef.current;
+
+        if (field === 'lastname') {
+            setVoterLastName(val);
+            lname = val;
+        }
+        if (field === 'firstname') {
+            setVoterFirstName(val);
+            fname = val;
+        }
+        if (field === 'middlename') {
+            setVoterMiddleName(val);
+            mname = val;
+        }
+
+        runSearch(lname, fname, mname, voterLgu, voterBarangayRef.current);
     };
 
     const handleVoterLguChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -224,8 +248,8 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         setVoterBarangay('');
         voterBarangayRef.current = '';
         setSearchError('');
-        if (voterQueryRef.current.trim().length >= 2) {
-            runSearch(voterQueryRef.current, e.target.value, '');
+        if (voterLastNameRef.current.trim().length >= 2 || voterFirstNameRef.current.trim().length >= 2 || voterMiddleNameRef.current.trim().length >= 2) {
+            runSearch(voterLastNameRef.current, voterFirstNameRef.current, voterMiddleNameRef.current, e.target.value, '');
         }
     };
 
@@ -234,13 +258,14 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         setVoterBarangay(b);
         voterBarangayRef.current = b;
         setSearchError('');
-        runSearch(voterQueryRef.current, voterLgu, b);
+        runSearch(voterLastNameRef.current, voterFirstNameRef.current, voterMiddleNameRef.current, voterLgu, b);
     };
 
     const handleSelectVoter = (voter: Voter) => {
         setSelectedVoter(voter);
-        setShowDropdown(false);
-        setVoterQuery('');
+        setVoterLastName('');
+        setVoterFirstName('');
+        setVoterMiddleName('');
         setVoterResults([]);
 
         setFormData((prev) => ({
@@ -259,7 +284,6 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
 
     const handleSkipSearch = () => {
         setSearchSkipped(true);
-        setShowDropdown(false);
     };
 
     const handleClearVoter = () => {
@@ -305,7 +329,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 sm:p-6 overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-auto">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl my-auto">
 
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -360,112 +384,105 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                             </div>
                         </div>
 
-                        {/* Search-by field checkboxes */}
-                        <div className="flex items-center gap-4 mb-3">
-                            <span className="text-xs font-medium text-gray-500 shrink-0">Search by:</span>
-                            {([
-                                { label: 'Last Name', checked: searchLastname, setter: setSearchLastname, field: 'lastname' },
-                                { label: 'First Name', checked: searchFirstname, setter: setSearchFirstname, field: 'firstname' },
-                                { label: 'Middle Name', checked: searchMiddlename, setter: setSearchMiddlename, field: 'middlename' },
-                            ] as const).map(({ label, checked, setter }) => (
-                                <label key={label} className="flex items-center gap-1.5 cursor-pointer select-none">
+                        {/* Name search inputs */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Last Name</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Search className="h-4 w-4 text-gray-400" />
+                                    </div>
                                     <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        onChange={(e) => {
-                                            setter(e.target.checked);
-                                            // Re-run search immediately with updated fields
-                                            if (voterQueryRef.current.trim().length >= 2) {
-                                                // Build updated fields inline since state hasn't updated yet
-                                                const ln = label === 'Last Name' ? e.target.checked : searchLastname;
-                                                const fn = label === 'First Name' ? e.target.checked : searchFirstname;
-                                                const mn = label === 'Middle Name' ? e.target.checked : searchMiddlename;
-                                                const fields: ('lastname' | 'firstname' | 'middlename')[] = [];
-                                                if (ln) fields.push('lastname');
-                                                if (fn) fields.push('firstname');
-                                                if (mn) fields.push('middlename');
-                                                searchFieldsRef.current = fields.length > 0 ? fields : ['lastname'];
-                                                runSearch(voterQueryRef.current, voterLgu, voterBarangayRef.current);
-                                            }
-                                        }}
-                                        className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                        type="text"
+                                        placeholder="Search last name..."
+                                        value={voterLastName}
+                                        onChange={(e) => handleVoterNameChange(e, 'lastname')}
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
                                     />
-                                    <span className="text-xs text-gray-700">{label}</span>
-                                </label>
-                            ))}
-                        </div>
-
-                        {/* Name search input */}
-                        <div className="relative" ref={dropdownRef}>†
-                            <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2.5 focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 bg-white">
-                                <Search className="w-4 h-4 text-gray-400 shrink-0" />
-                                <input
-                                    type="text"
-                                    placeholder="Type a name to search voters…"
-                                    value={voterQuery}
-                                    onChange={handleVoterQueryChange}
-                                    onKeyDown={(e) => {
-                                        if (!showDropdown || voterResults.length === 0) return;
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            const next = (highlightedIndex + 1) % voterResults.length;
-                                            setHighlightedIndex(next);
-                                            listItemRefs.current[next]?.scrollIntoView({ block: 'nearest' });
-                                        } else if (e.key === 'ArrowUp') {
-                                            e.preventDefault();
-                                            const prev = highlightedIndex <= 0 ? voterResults.length - 1 : highlightedIndex - 1;
-                                            setHighlightedIndex(prev);
-                                            listItemRefs.current[prev]?.scrollIntoView({ block: 'nearest' });
-                                        } else if (e.key === 'Enter' && highlightedIndex >= 0) {
-                                            e.preventDefault();
-                                            handleSelectVoter(voterResults[highlightedIndex]);
-                                            setHighlightedIndex(-1);
-                                        } else if (e.key === 'Escape') {
-                                            setShowDropdown(false);
-                                            setHighlightedIndex(-1);
-                                        }
-                                    }}
-                                    className="flex-1 outline-none text-sm text-gray-800 placeholder-gray-400 bg-transparent"
-                                    autoFocus
-                                />
-                                {isSearching && (
-                                    <span className="text-xs text-teal-600 animate-pulse shrink-0">Searching…</span>
-                                )}
-                            </div>
-
-                            {/* Results dropdown */}
-                            {showDropdown && voterResults.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
-                                    {voterResults.map((voter, idx) => (
-                                        <button
-                                            key={voter.id}
-                                            ref={el => { listItemRefs.current[idx] = el; }}
-                                            type="button"
-                                            onClick={() => handleSelectVoter(voter)}
-                                            onMouseEnter={() => setHighlightedIndex(idx)}
-                                            className={`w-full text-left px-4 py-3 transition-colors flex items-center justify-between group border-b border-gray-50 last:border-b-0 ${idx === highlightedIndex
-                                                ? 'bg-teal-500 text-white'
-                                                : 'hover:bg-teal-50'
-                                                }`}
-                                        >
-                                            <div>
-                                                <p className={`text-sm font-medium ${idx === highlightedIndex ? 'text-white' : 'text-gray-800'}`}>
-                                                    {voter.lastname}, {voter.firstname}
-                                                    {voter.middlename ? ` ${voter.middlename}` : ''}
-                                                    {voter.ext ? ` ${voter.ext}` : ''}
-                                                </p>
-                                                <p className={`text-xs mt-0.5 ${idx === highlightedIndex ? 'text-teal-100' : 'text-gray-500'}`}>
-                                                    {[voter.purok, voter.brgy].filter(Boolean).join(', ') || 'No address info'}
-                                                </p>
-                                            </div>
-                                            <ChevronRight className={`w-4 h-4 transition-colors ${idx === highlightedIndex ? 'text-white' : 'text-gray-300 group-hover:text-teal-500'}`} />
-                                        </button>
-                                    ))}
                                 </div>
-                            )}
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">First Name</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Search className="h-4 w-4 text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Search first name..."
+                                        value={voterFirstName}
+                                        onChange={(e) => handleVoterNameChange(e, 'firstname')}
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Middle Name</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Search className="h-4 w-4 text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Search middle name..."
+                                        value={voterMiddleName}
+                                        onChange={(e) => handleVoterNameChange(e, 'middlename')}
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        {searchError && voterQuery.trim().length >= 2 && !isSearching && (
+                        {/* Search Results Table */}
+                        {isSearching ? (
+                            <div className="mt-4 flex justify-center py-4">
+                                <span className="text-sm text-teal-600 animate-pulse">Searching voter records...</span>
+                            </div>
+                        ) : voterResults.length > 0 ? (
+                            <div className="mt-4 overflow-x-auto border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+                                <table className="w-full text-left border-collapse min-w-max">
+                                    <thead className="sticky top-0 bg-gray-50 text-xs font-medium text-gray-500 uppercase z-10">
+                                        <tr>
+                                            <th className="px-4 py-3 border-b border-gray-200">Last Name</th>
+                                            <th className="px-4 py-3 border-b border-gray-200">First Name</th>
+                                            <th className="px-4 py-3 border-b border-gray-200">Middle Name</th>
+                                            <th className="px-4 py-3 border-b border-gray-200">LGU</th>
+                                            <th className="px-4 py-3 border-b border-gray-200">Brgy</th>
+                                            <th className="px-4 py-3 border-b border-gray-200">Status</th>
+                                            <th className="px-4 py-3 border-b border-gray-200 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-100">
+                                        {voterResults.map((voter) => (
+                                            <tr key={voter.id} className="hover:bg-teal-50 transition-colors group">
+                                                <td className="px-4 py-3 text-sm font-medium text-gray-900 border-b border-gray-100">{voter.lastname}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-700 border-b border-gray-100">{voter.firstname}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-700 border-b border-gray-100">{voter.middlename || '-'}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-500 border-b border-gray-100">{voter.lgu || '-'}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-500 border-b border-gray-100">{voter.brgy || '-'}</td>
+                                                <td className="px-4 py-3 border-b border-gray-100">
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${voter.status?.toLowerCase() === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                        {voter.status || 'Unknown'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-center border-b border-gray-100">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSelectVoter(voter)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white rounded-md text-xs font-medium transition-colors border border-teal-100 hover:border-teal-600"
+                                                    >
+                                                        <UserCheck className="w-3.5 h-3.5" />
+                                                        Select
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : null}
+
+                        {(searchError && (voterLastName.trim().length >= 2 || voterFirstName.trim().length >= 2 || voterMiddleName.trim().length >= 2) && !isSearching) && (
                             <p className="mt-2 text-sm text-amber-600">{searchError}</p>
                         )}
 
@@ -512,6 +529,33 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
 
                             {/* Personal Information */}
                             <div className="space-y-4 md:col-span-2">
+                                {possibleMatches.length > 0 && showForm && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start gap-3">
+                                        <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-medium text-blue-900">Possible voter match found!</h4>
+                                            <p className="text-sm text-blue-700 mt-1">
+                                                We found {possibleMatches.length} {possibleMatches.length === 1 ? 'record' : 'records'} matching "{formData.firstname} {formData.lastname}".
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearchSkipped(false);
+                                                setVoterLastName(formData.lastname || '');
+                                                voterLastNameRef.current = formData.lastname || '';
+                                                setVoterFirstName(formData.firstname || '');
+                                                voterFirstNameRef.current = formData.firstname || '';
+                                                setVoterMiddleName(formData.middlename || '');
+                                                voterMiddleNameRef.current = formData.middlename || '';
+                                                runSearch(formData.lastname || '', formData.firstname || '', formData.middlename || '', voterLgu, voterBarangay);
+                                            }}
+                                            className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md text-sm font-medium transition-colors shrink-0 whitespace-nowrap"
+                                        >
+                                            Review Matches
+                                        </button>
+                                    </div>
+                                )}
                                 <h3 className="text-sm font-medium text-gray-900 border-b pb-2">Personal Information</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>

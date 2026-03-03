@@ -76,7 +76,7 @@ export function DuesCollection({ payments, members, households, onCreatePayment,
   const uniqueBarangays = [...new Set(households.map(h => h.barangay).filter(Boolean))].sort();
 
   return (
-    <div className="flex-1 bg-gray-50">
+    <div className="flex-1 bg-gray-50 min-h-0 overflow-auto">
       <Header title="Dues Collection" subtitle="Record and manage membership dues payments" onMenuClick={onMenuClick} />
       <div className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

@@ -25,7 +25,7 @@ export function Locations({ locations, onCreateLocation, onUpdateLocation, onDel
   const uniqueLGUs = [...new Set(locations.map(l => l.lgu))];
 
   return (
-    <div className="flex-1 bg-gray-50">
+    <div className="flex-1 bg-gray-50 min-h-0 overflow-auto">
       <Header title="Locations" subtitle="Manage LGUs and Barangays for household registration" />
       <div className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -33,13 +33,13 @@ export function Locations({ locations, onCreateLocation, onUpdateLocation, onDel
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Total Barangays</p><p className="text-2xl font-bold text-gray-900">{locations.length}</p></div><div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center"><MapPin className="w-6 h-6 text-white" /></div></div></div>
         </div>
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1 relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search locations..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 w-full" /></div>
-          <select value={filterLGU} onChange={e=>setFilterLGU(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"><option value="">All LGUs</option>{uniqueLGUs.map(lgu=>(<option key={lgu} value={lgu}>{lgu}</option>))}</select>
-          <button onClick={()=>setIsFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"><Plus className="w-4 h-4" />Add Location</button>
+          <div className="flex-1 relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search locations..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 w-full" /></div>
+          <select value={filterLGU} onChange={e => setFilterLGU(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"><option value="">All LGUs</option>{uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}</select>
+          <button onClick={() => setIsFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"><Plus className="w-4 h-4" />Add Location</button>
         </div>
         <LocationTable locations={filteredLocations} onEdit={handleEdit} onDelete={handleDelete} />
       </div>
-      <LocationForm location={editingLocation} isOpen={isFormOpen} onClose={()=>{setIsFormOpen(false);setEditingLocation(undefined);}} onSave={handleSave} />
+      <LocationForm location={editingLocation} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingLocation(undefined); }} onSave={handleSave} />
     </div>
   );
 }

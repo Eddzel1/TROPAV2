@@ -4,7 +4,7 @@ import { MemberTable } from './MemberTable';
 // TS server force refresh
 import { MemberForm } from './MemberForm';
 import { FamilyMember, Household, Location } from '../../types';
-import { Plus, Search, Users, UserCheck, Shield, Calendar } from 'lucide-react';
+import { Plus, Search, Users, UserCheck, Shield, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface MembersProps {
   members: FamilyMember[];
@@ -23,6 +23,8 @@ export function Members({ members, households, locations, onCreateMember, onUpda
   const [filterSector, setFilterSector] = React.useState('');
   const [filterHousehold, setFilterHousehold] = React.useState('');
   const [filterStatus, setFilterStatus] = React.useState('');
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 8;
 
   const filteredMembers = members.filter(member => {
     const fullName = `${member.firstname} ${member.middlename || ''} ${member.lastname}`.toLowerCase();
@@ -39,6 +41,41 @@ export function Members({ members, households, locations, onCreateMember, onUpda
       (filterStatus === 'voter' && member.is_voter);
     return matchesSearch && matchesSector && matchesHousehold && matchesStatus;
   });
+
+  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+  const paginatedMembers = filteredMembers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset page to 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterSector, filterHousehold, filterStatus]);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
 
   const handleEdit = (member: FamilyMember) => { setEditingMember(member); setIsFormOpen(true); };
 
@@ -93,8 +130,50 @@ export function Members({ members, households, locations, onCreateMember, onUpda
             <button onClick={() => setIsFormOpen(true)} className="flex items-center justify-center gap-2 px-4 py-3 lg:py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-lg transition-colors touch-manipulation text-base lg:text-sm font-medium"><Plus className="w-4 h-4" />Add Member</button>
           </div>
         </div>
-        <div className="mb-4"><p className="text-sm lg:text-base text-gray-600">Showing {filteredMembers.length} of {totalMembers} members</p></div>
-        <MemberTable members={filteredMembers} onEdit={handleEdit} onDelete={handleDelete} />
+        <div className="mb-4"><p className="text-sm lg:text-base text-gray-600">Showing {filteredMembers.length} matching out of {totalMembers} total members</p></div>
+        <MemberTable members={paginatedMembers} onEdit={handleEdit} onDelete={handleDelete} />
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredMembers.length)}</span> of <span className="font-medium">{filteredMembers.length}</span> members
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-1">
+                {getPageNumbers().map((page, index) => (
+                  <button
+                    key={`${page}-${index}`}
+                    onClick={() => typeof page === 'number' ? setCurrentPage(page) : null}
+                    disabled={page === '...'}
+                    className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${page === '...'
+                        ? 'cursor-default text-gray-500'
+                        : currentPage === page
+                          ? 'bg-teal-600 text-white border border-teal-600'
+                          : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <MemberForm member={editingMember} households={households} locations={locations} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingMember(undefined); }} onSave={handleSave} />
     </div>
