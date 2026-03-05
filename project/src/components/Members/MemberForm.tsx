@@ -58,6 +58,22 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     const voterBarangayRef = useRef(voterBarangay);
     const [isAddAnother, setIsAddAnother] = useState(false);
 
+    // ── Household Search State ──
+    const [householdSearch, setHouseholdSearch] = useState('');
+    const [isHouseholdDropdownOpen, setIsHouseholdDropdownOpen] = useState(false);
+    const householdRef = useRef<HTMLDivElement>(null);
+
+    // Document click listener to close household dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (householdRef.current && !householdRef.current.contains(event.target as Node)) {
+                setIsHouseholdDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     // Keep refs in sync with state
     useEffect(() => { voterLastNameRef.current = voterLastName; }, [voterLastName]);
     useEffect(() => { voterFirstNameRef.current = voterFirstName; }, [voterFirstName]);
@@ -70,6 +86,8 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     useEffect(() => {
         if (member) {
             setFormData(member);
+            const hh = households.find(h => h.id === member.household_id);
+            setHouseholdSearch(hh ? hh.household_name : '');
         } else if (preSelectedHousehold) {
             setFormData({
                 ...emptyForm,
@@ -80,8 +98,10 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 purok: preSelectedHousehold.purok,
                 is_household_leader: false
             });
+            setHouseholdSearch(preSelectedHousehold.household_name);
         } else {
             setFormData(emptyForm);
+            setHouseholdSearch('');
         }
         setVoterLastName('');
         setVoterFirstName('');
@@ -155,6 +175,18 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
 
         return () => clearTimeout(timer);
     }, [formData.lastname, formData.firstname, formData.middlename, isAddMode, selectedVoter, searchSkipped]);
+
+    // ── Filter & Sort Households ──
+    const filteredHouseholds = React.useMemo(() => {
+        let result = households;
+        if (formData.lgu) result = result.filter(h => h.lgu === formData.lgu);
+        if (formData.barangay) result = result.filter(h => h.barangay === formData.barangay);
+        if (householdSearch) {
+            const lowerSearch = householdSearch.toLowerCase();
+            result = result.filter(h => h.household_name.toLowerCase().includes(lowerSearch));
+        }
+        return [...result].sort((a, b) => a.household_name.localeCompare(b.household_name));
+    }, [households, formData.lgu, formData.barangay, householdSearch]);
 
     // ── All hooks must be above this line ──
     if (!isOpen) return null;
@@ -530,11 +562,13 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                             {/* Personal Information */}
                             <div className="space-y-4 md:col-span-2">
                                 {possibleMatches.length > 0 && showForm && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-start gap-3">
-                                        <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                            <h4 className="text-sm font-medium text-blue-900">Possible voter match found!</h4>
-                                            <p className="text-sm text-blue-700 mt-1">
+                                    <div className="bg-amber-50 border border-amber-400 shadow-md rounded-lg p-4 mb-4 flex items-start gap-3">
+                                        <div className="bg-amber-100 p-2 rounded-full shrink-0">
+                                            <Info className="w-6 h-6 text-amber-600" />
+                                        </div>
+                                        <div className="flex-1 mt-1">
+                                            <h4 className="text-base font-bold text-amber-900 tracking-tight">Possible voter match found!</h4>
+                                            <p className="text-sm font-medium text-amber-800 mt-1">
                                                 We found {possibleMatches.length} {possibleMatches.length === 1 ? 'record' : 'records'} matching "{formData.firstname} {formData.lastname}".
                                             </p>
                                         </div>
@@ -550,7 +584,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                                 voterMiddleNameRef.current = formData.middlename || '';
                                                 runSearch(formData.lastname || '', formData.firstname || '', formData.middlename || '', voterLgu, voterBarangay);
                                             }}
-                                            className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-md text-sm font-medium transition-colors shrink-0 whitespace-nowrap"
+                                            className="px-4 py-2 mt-1 bg-amber-600 text-white hover:bg-amber-700 shadow-sm rounded-md text-sm font-bold transition-colors shrink-0 whitespace-nowrap"
                                         >
                                             Review Matches
                                         </button>
@@ -685,20 +719,49 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                             />
                                         </div>
                                     ) : (
-                                        <div>
+                                        <div className="relative" ref={householdRef}>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Household *</label>
-                                            <select
-                                                name="household_id"
-                                                required={!formData.is_household_leader}
-                                                value={formData.household_id || ''}
-                                                onChange={handleInputChange}
+                                            <input
+                                                type="text"
+                                                name="householdSearch"
+                                                value={householdSearch}
+                                                onChange={(e) => {
+                                                    setHouseholdSearch(e.target.value);
+                                                    setFormData(prev => ({ ...prev, household_id: '' })); // clear matched id until they explicitly click one
+                                                    if (!isHouseholdDropdownOpen) setIsHouseholdDropdownOpen(true);
+                                                }}
+                                                onFocus={() => setIsHouseholdDropdownOpen(true)}
+                                                placeholder="Search Household"
                                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                                            >
-                                                <option value="">Select Household</option>
-                                                {households.map(h => (
-                                                    <option key={h.id} value={h.id}>{h.household_name}</option>
-                                                ))}
-                                            </select>
+                                                required={!formData.is_household_leader && !formData.household_id}
+                                            />
+                                            {isHouseholdDropdownOpen && (
+                                                <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                                                    {filteredHouseholds.length > 0 ? (
+                                                        filteredHouseholds.map(h => (
+                                                            <li
+                                                                key={h.id}
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault(); // prevent input from losing focus immediately which closes dropdown due to click-outside
+                                                                    setFormData(prev => ({ ...prev, household_id: h.id }));
+                                                                    setHouseholdSearch(h.household_name);
+                                                                    setIsHouseholdDropdownOpen(false);
+                                                                }}
+                                                                className={`px-4 py-2 hover:bg-teal-50 cursor-pointer ${formData.household_id === h.id ? 'bg-teal-100/50' : ''}`}
+                                                            >
+                                                                <div className="font-medium text-gray-900">{h.household_name}</div>
+                                                                <div className="text-xs text-gray-500">{h.barangay}, {h.lgu}</div>
+                                                            </li>
+                                                        ))
+                                                    ) : (
+                                                        <li className="px-4 py-3 text-sm text-gray-500 italic text-center">
+                                                            No households found{formData.barangay || formData.lgu ? ' for selected location' : ''}.
+                                                        </li>
+                                                    )}
+                                                </ul>
+                                            )}
+                                            {/* Hidden field to keep native form submission requirements intact */}
+                                            <input type="hidden" name="household_id" value={formData.household_id || ''} required={!formData.is_household_leader} />
                                         </div>
                                     )}
                                     <div>
