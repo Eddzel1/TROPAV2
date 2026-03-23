@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
 import { X, Save, Eye, EyeOff } from 'lucide-react';
 
@@ -15,11 +15,27 @@ const availablePermissions = [
   { id: 'view_reports', label: 'View Reports', description: 'Access to reports and analytics' },
   { id: 'manage_locations', label: 'Manage Locations', description: 'Add, edit locations' },
   { id: 'user_management', label: 'User Management', description: 'Manage system users' },
+  { id: 'tropa_finder', label: 'Tropa Finder', description: 'Access to Tropa Finder page' },
 ];
 
 export function UserForm({ user, isOpen, onClose, onSave }: UserFormProps) {
   const [formData, setFormData] = useState({ email: user?.email || '', firstname: user?.firstname || '', lastname: user?.lastname || '', role: (user?.role || 'user') as 'admin' | 'user' | 'collector', status: (user?.status || 'active') as 'active' | 'inactive', permissions: user?.permissions || [], password: '' });
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        email: user?.email || '',
+        firstname: user?.firstname || '',
+        lastname: user?.lastname || '',
+        role: (user?.role || 'user') as 'admin' | 'user' | 'collector',
+        status: (user?.status || 'active') as 'active' | 'inactive',
+        permissions: user?.permissions || [],
+        password: ''
+      });
+      setShowPassword(false);
+    }
+  }, [user, isOpen]);
 
   const getRolePermissions = (role: string) => { switch (role) { case 'admin': return ['all']; case 'collector': return ['view_dashboard', 'view_households', 'view_members', 'dues_collection', 'view_reports']; default: return ['view_dashboard', 'view_reports']; } };
 

@@ -8,7 +8,8 @@ import { Members } from './components/Members/Members';
 import { DuesCollection } from './components/DuesCollection/DuesCollection';
 import { Reports } from './components/Reports/Reports';
 import { Settings } from './components/Settings/Settings';
-import { useHouseholds, useFamilyMembers, useDuesPayments, useUsers, useLocations } from './hooks/useSupabase';
+import { TropaFinder } from './components/TropaFinder/TropaFinder';
+import { useHouseholds, useFamilyMembers, useDuesPayments, useUsers, useLocations, useAuthProfile } from './hooks/useSupabase';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -21,6 +22,7 @@ function App() {
   const { payments, createPayment, updatePayment, deletePayment } = useDuesPayments();
   const { users, createUser, updateUser, deleteUser } = useUsers();
   const { locations, createLocation, updateLocation, deleteLocation } = useLocations();
+  const { profile: currentUser, loading: profileLoading } = useAuthProfile();
 
   React.useEffect(() => {
     const checkAuth = async () => {
@@ -41,11 +43,43 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  React.useEffect(() => {
+    if (isAuthenticated && currentUser && !profileLoading) {
+      const perms = currentUser.permissions || [];
+      if (perms.includes('all')) return;
+
+      const pagePermissionMap: Record<string, string[]> = {
+        'dashboard': ['view_dashboard'],
+        'households': ['view_households', 'manage_households'],
+        'members': ['view_members', 'manage_members'],
+        'dues': ['dues_collection'],
+        'reports': ['view_reports'],
+        'tropafinder': ['tropa_finder'],
+        'settings': ['user_management']
+      };
+
+      const requiredPerms = pagePermissionMap[currentPage] || [];
+      const hasAccess = requiredPerms.some(p => perms.includes(p));
+
+      if (!hasAccess) {
+        const pages = ['dashboard', 'households', 'members', 'dues', 'reports', 'tropafinder', 'settings'];
+        const firstAllowed = pages.find(page => {
+          const reqs = pagePermissionMap[page] || [];
+          return reqs.length === 0 || reqs.some(p => perms.includes(p)); // if no reqs, it's allowed
+        });
+        
+        if (firstAllowed && firstAllowed !== currentPage) {
+          setCurrentPage(firstAllowed);
+        }
+      }
+    }
+  }, [isAuthenticated, currentUser, profileLoading, currentPage]);
+
   const handleLogout = () => {
     setIsAuthenticated(false);
   };
 
-  if (authLoading) {
+  if (authLoading || (isAuthenticated && profileLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -129,6 +163,12 @@ function App() {
             onMenuClick={() => setSidebarOpen(true)}
           />
         );
+      case 'tropafinder':
+        return (
+          <TropaFinder
+            onMenuClick={() => setSidebarOpen(true)}
+          />
+        );
       case 'settings':
         return (
           <Settings
@@ -158,6 +198,7 @@ function App() {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar
+        currentUser={currentUser}
         currentPage={currentPage}
         onPageChange={(page) => {
           setCurrentPage(page);

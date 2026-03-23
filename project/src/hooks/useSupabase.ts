@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabaseHelpers } from '../lib/supabase';
+import { supabase, supabaseHelpers } from '../lib/supabase';
 import { Database } from '../types/database';
 import { Household, FamilyMember, DuesPayment, User, Location } from '../types';
 
@@ -760,4 +760,72 @@ export function useDashboardStats() {
         error,
         refetch: fetchStats
     };
+}
+
+// Custom hook for current authenticated user profile
+export function useAuthProfile() {
+    const [profile, setProfile] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let mounted = true;
+
+        const fetchProfile = async (session: any) => {
+            if (!session?.user?.email) {
+                if (mounted) {
+                    setProfile(null);
+                    setLoading(false);
+                }
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('email', session.user.email)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') {
+                    console.error('Error fetching user profile:', error);
+                }
+
+                if (mounted && data) {
+                    setProfile({
+                        id: data.id,
+                        email: data.email,
+                        firstname: data.firstname,
+                        lastname: data.lastname,
+                        role: data.role as 'admin' | 'user' | 'collector',
+                        status: data.status as 'active' | 'inactive',
+                        last_login: data.last_login ? new Date(data.last_login) : undefined,
+                        permissions: data.permissions || [],
+                        created_date: new Date(data.created_date),
+                        updated_date: new Date(data.updated_date)
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to fetch user profile:', err);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
+
+        // Initial fetch
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            fetchProfile(session);
+        });
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            fetchProfile(session);
+        });
+
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+        };
+    }, []);
+
+    return { profile, loading };
 }

@@ -1,5 +1,6 @@
-import { LayoutDashboard, Home, Users, CreditCard, FileText, Settings, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, Home, Users, CreditCard, FileText, Settings, LogOut, X, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { User } from '../../types';
 
 function cn(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(' ');
@@ -12,6 +13,7 @@ interface SidebarProps {
   onClose: () => void;
   onToggle: () => void;
   onLogout: () => void;
+  currentUser?: User | null;
 }
 
 const menuItems = [
@@ -20,10 +22,11 @@ const menuItems = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'dues', label: 'Dues Collection', icon: CreditCard },
   { id: 'reports', label: 'Reports', icon: FileText },
+  { id: 'tropafinder', label: 'Tropa Finder', icon: Search },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar({ currentPage, onPageChange, isOpen, onClose, onLogout }: SidebarProps) {
+export function Sidebar({ currentPage, onPageChange, isOpen, onClose, onLogout, currentUser }: SidebarProps) {
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -66,10 +69,29 @@ export function Sidebar({ currentPage, onPageChange, isOpen, onClose, onLogout }
         </div>
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">MAIN MENU</div>
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button key={item.id} onClick={() => onPageChange(item.id)}
+          {(() => {
+            const perms = currentUser?.permissions || [];
+            let filteredMenuItems = menuItems;
+
+            if (!perms.includes('all')) {
+              filteredMenuItems = menuItems.filter(item => {
+                switch (item.id) {
+                  case 'dashboard': return perms.includes('view_dashboard');
+                  case 'households': return perms.includes('view_households') || perms.includes('manage_households');
+                  case 'members': return perms.includes('view_members') || perms.includes('manage_members');
+                  case 'dues': return perms.includes('dues_collection');
+                  case 'reports': return perms.includes('view_reports');
+                  case 'tropafinder': return perms.includes('tropa_finder');
+                  case 'settings': return perms.includes('user_management');
+                  default: return false;
+                }
+              });
+            }
+
+            return filteredMenuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button key={item.id} onClick={() => onPageChange(item.id)}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-3 lg:py-2 text-left text-sm font-medium rounded-lg transition-colors touch-manipulation",
                   currentPage === item.id
@@ -79,17 +101,20 @@ export function Sidebar({ currentPage, onPageChange, isOpen, onClose, onLogout }
                 <Icon className="w-5 h-5" />
                 {item.label}
               </button>
-            );
-          })}
+              );
+            });
+          })()}
         </nav>
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 bg-teal-100 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-teal-700">ES</span>
+              <span className="text-sm font-medium text-teal-700 uppercase">
+                {currentUser?.firstname?.charAt(0) || ''}{currentUser?.lastname?.charAt(0) || ''}
+              </span>
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">Edsel Soterio</p>
-              <p className="text-xs text-gray-500">Admin</p>
+              <p className="text-sm font-medium text-gray-900">{currentUser?.firstname} {currentUser?.lastname}</p>
+              <p className="text-xs text-gray-500 capitalize">{currentUser?.role || 'User'}</p>
             </div>
           </div>
           <button onClick={handleLogout}

@@ -339,6 +339,36 @@ export interface Database {
         }
         Relationships: []
       }
+      voter_blocklist: {
+        Row: {
+          id: string
+          voter_id: number
+          note: string | null
+          image_url: string | null
+          image_path: string | null
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          voter_id: number
+          note?: string | null
+          image_url?: string | null
+          image_path?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          voter_id?: number
+          note?: string | null
+          image_url?: string | null
+          image_path?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
