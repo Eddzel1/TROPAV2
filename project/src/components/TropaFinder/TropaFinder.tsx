@@ -728,9 +728,18 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
               {barangays.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
-          <p className="text-xs text-gray-400 mt-3">
-            💡 Press <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Enter</kbd> in any name field to search.
-          </p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 gap-3">
+            <p className="text-xs text-gray-400 hidden sm:block">
+              💡 Press <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">Enter</kbd> in any name field to search.
+            </p>
+            <button
+              onClick={handleSearch}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 lg:py-2.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-lg transition-colors touch-manipulation text-base lg:text-sm font-medium sm:ml-auto"
+            >
+              <Search className="w-4 h-4" />
+              Search
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -777,7 +786,8 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
               </span>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200">
@@ -866,6 +876,88 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden flex flex-col gap-4 mb-4">
+              {voters.map((voter, idx) => {
+                const rowNum = (currentPage - 1) * PAGE_SIZE + idx + 1;
+                const entry = blocklist.get(voter.id);
+                const isBlocklisted = !!entry;
+
+                return (
+                  <div key={voter.id} className={`bg-white rounded-xl shadow-sm border p-4 flex flex-col gap-3 transition-colors ${isBlocklisted ? 'border-red-300 bg-red-50/50' : 'border-gray-200'}`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-mono text-gray-400">#{rowNum}</span>
+                          {voter.status && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium tracking-wide ${voter.status.toUpperCase() === 'ACTIVE'
+                                ? 'bg-green-100 text-green-700'
+                                : voter.status.toUpperCase() === 'DEACTIVATED'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}>
+                              {voter.status}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className={`font-bold text-base leading-tight ${isBlocklisted ? 'text-red-900' : 'text-gray-900'}`}>
+                          {voter.lastname || ''}{(voter.lastname && (voter.firstname || voter.middlename)) ? ',' : ''} {voter.firstname || ''} {voter.middlename || ''} {voter.ext || ''}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          {[voter.brgy, voter.lgu].filter(Boolean).join(', ') || 'No location'}
+                        </p>
+                      </div>
+                      {isBlocklisted && (
+                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 flex-shrink-0 ml-2">
+                          <ShieldBan className="w-4 h-4" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
+                      <div>
+                        <span className="text-gray-400 text-xs font-medium uppercase tracking-wider block mb-0.5">Precinct (PC)</span>
+                        <span className="font-semibold text-gray-700">{voter.PC || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 text-xs font-medium uppercase tracking-wider block mb-0.5">Household (HHL)</span>
+                        <span className="font-semibold text-gray-700">{voter.HHL || '—'}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 mt-1">
+                      {isBlocklisted ? (
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button
+                            onClick={() => setViewEntry({ voter, entry: entry! })}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-red-700 bg-red-100 hover:bg-red-200 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View Note
+                          </button>
+                          <button
+                            onClick={() => setModalVoter(voter)}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                          >
+                            <ShieldBan className="w-4 h-4" />
+                            Edit Blocklist
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setModalVoter(voter)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <ShieldBan className="w-4 h-4" />
+                          Add to Blocklist
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Pagination */}
