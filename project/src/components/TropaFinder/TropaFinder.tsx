@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from '../Layout/Header';
 import { supabase } from '../../lib/supabase';
+import { useAuthProfile } from '../../hooks/useSupabase';
+import { User } from '../../types';
 import {
   Search,
   ChevronLeft,
@@ -40,6 +42,7 @@ interface BlocklistEntry {
   image_url: string | null;
   image_path: string | null;
   created_at: string;
+  created_by: string | null;
 }
 
 type SortField = 'lastname' | 'firstname' | 'middlename' | 'lgu' | 'brgy' | 'status';
@@ -57,6 +60,7 @@ interface BlocklistModalProps {
   existing: BlocklistEntry | null;
   onClose: () => void;
   onSaved: () => void;
+  currentUser: User | null;
 }
 
 // ── Image compression helper ──────────────────────────────────────────────────
@@ -89,7 +93,7 @@ async function compressImage(source: File | Blob, maxPx = 1200, quality = 0.75):
   });
 }
 
-function BlocklistModal({ voter, existing, onClose, onSaved }: BlocklistModalProps) {
+function BlocklistModal({ voter, existing, onClose, onSaved, currentUser }: BlocklistModalProps) {
   const [note, setNote] = useState(existing?.note ?? '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(existing?.image_url ?? null);
@@ -170,14 +174,14 @@ function BlocklistModal({ voter, existing, onClose, onSaved }: BlocklistModalPro
         // Update
         const { error: updateErr } = await supabase
           .from('voter_blocklist')
-          .update({ note: note || null, image_url, image_path })
+          .update({ note: note || null, image_url, image_path, created_by: currentUser?.email })
           .eq('id', existing.id);
         if (updateErr) throw updateErr;
       } else {
         // Insert
         const { error: insertErr } = await supabase
           .from('voter_blocklist')
-          .insert({ voter_id: voter.id, note: note || null, image_url, image_path });
+          .insert({ voter_id: voter.id, note: note || null, image_url, image_path, created_by: currentUser?.email });
         if (insertErr) throw insertErr;
       }
 
@@ -343,7 +347,7 @@ interface BlocklistViewModalProps {
   voter: Voter | null;
   entry: BlocklistEntry | null;
   onClose: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
 }
 
 function BlocklistViewModal({ voter, entry, onClose, onEdit }: BlocklistViewModalProps) {
@@ -396,7 +400,14 @@ function BlocklistViewModal({ voter, entry, onClose, onEdit }: BlocklistViewModa
 
         <div className="p-5 space-y-4">
           {/* Meta */}
-          <p className="text-xs text-gray-400">Blocklisted on {date}</p>
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-gray-400">Blocklisted on {date}</p>
+            {entry.created_by && (
+              <p className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded inline-flex items-center gap-1">
+                By: <span className="font-medium text-gray-700">{entry.created_by}</span>
+              </p>
+            )}
+          </div>
 
           {/* Note */}
           {entry.note ? (
@@ -462,9 +473,11 @@ function BlocklistViewModal({ voter, entry, onClose, onEdit }: BlocklistViewModa
           <button onClick={onClose} className="px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium transition-colors">
             Close
           </button>
-          <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
-            <ShieldBan className="w-4 h-4" /> Edit Entry
-          </button>
+          {onEdit && (
+            <button onClick={onEdit} className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+              <ShieldBan className="w-4 h-4" /> Edit Entry
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -475,6 +488,9 @@ function BlocklistViewModal({ voter, entry, onClose, onEdit }: BlocklistViewModa
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function TropaFinder({ onMenuClick }: TropaFinderProps) {
+  const { profile: currentUser } = useAuthProfile();
+  const isAdmin = currentUser?.role === 'admin';
+
   const [searchLastname, setSearchLastname] = useState('');
   const [searchFirstname, setSearchFirstname] = useState('');
   const [searchMiddlename, setSearchMiddlename] = useState('');
@@ -845,22 +861,28 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
                           <td className="px-3 py-3">
                             {isBlocklisted ? (
                               <div className="flex items-center gap-1.5">
-                                <button
-                                  onClick={() => setModalVoter(voter)}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600 text-white rounded-full text-xs font-bold hover:bg-red-700 transition-colors"
-                                >
-                                  <ShieldBan className="w-3 h-3" />
-                                  BLOCKLISTED
-                                </button>
+                                {isAdmin ? (
+                                  <button
+                                    onClick={() => setModalVoter(voter)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-600 text-white rounded-full text-xs font-bold hover:bg-red-700 transition-colors"
+                                  >
+                                    <ShieldBan className="w-3 h-3" />
+                                    EDIT NOTE
+                                  </button>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold uppercase">
+                                    <ShieldBan className="w-3 h-3" /> Blocklisted
+                                  </span>
+                                )}
                                 <button
                                   onClick={() => setViewEntry({ voter, entry: entry! })}
                                   title="View details"
-                                  className="p-1 rounded-full text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors"
+                                  className="p-1 flex items-center gap-1 rounded-full text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors"
                                 >
-                                  <Eye className="w-3.5 h-3.5" />
+                                  <Eye className="w-3.5 h-3.5" /> {isAdmin ? '' : <span className="text-xs font-medium px-1">NOTE</span>}
                                 </button>
                               </div>
-                            ) : (
+                            ) : isAdmin ? (
                               <button
                                 onClick={() => setModalVoter(voter)}
                                 className="inline-flex items-center gap-1 px-2 py-0.5 border border-gray-300 text-gray-500 rounded-full text-xs hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
@@ -868,6 +890,8 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
                                 <ShieldBan className="w-3 h-3" />
                                 Blocklist
                               </button>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">Clear</span>
                             )}
                           </td>
                         </tr>
@@ -937,15 +961,17 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
                             <Eye className="w-4 h-4" />
                             View Note
                           </button>
-                          <button
-                            onClick={() => setModalVoter(voter)}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-                          >
-                            <ShieldBan className="w-4 h-4" />
-                            Edit Blocklist
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => setModalVoter(voter)}
+                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                            >
+                              <ShieldBan className="w-4 h-4" />
+                              Edit Blocklist
+                            </button>
+                          )}
                         </div>
-                      ) : (
+                      ) : isAdmin ? (
                         <button
                           onClick={() => setModalVoter(voter)}
                           className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
@@ -953,7 +979,7 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
                           <ShieldBan className="w-4 h-4" />
                           Add to Blocklist
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -1004,6 +1030,7 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
           existing={blocklist.get(modalVoter.id) ?? null}
           onClose={() => setModalVoter(null)}
           onSaved={handleBlocklistSaved}
+          currentUser={currentUser}
         />
       )}
 
@@ -1013,7 +1040,7 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
           voter={viewEntry.voter}
           entry={viewEntry.entry}
           onClose={() => setViewEntry(null)}
-          onEdit={() => { setModalVoter(viewEntry.voter); setViewEntry(null); }}
+          onEdit={isAdmin ? () => { setModalVoter(viewEntry.voter); setViewEntry(null); } : undefined}
         />
       )}
     </div>
