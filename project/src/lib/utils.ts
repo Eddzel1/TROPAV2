@@ -1,4 +1,27 @@
-import { DuesPayment } from '../types';
+import { DuesPayment, ContributionRate } from '../types';
+
+const DEFAULT_RATE = 50; // fallback if no rate table data available
+
+/** Returns the contribution amount (₱) that was in effect for a given YYYY-MM month. */
+export function getRateForMonth(rates: ContributionRate[], monthISO: string): number {
+  if (!rates || rates.length === 0) return DEFAULT_RATE;
+  const [year, month] = monthISO.split('-').map(Number);
+  const monthDate = new Date(year, month - 1, 1);
+  // Find the latest rate whose effective_from <= start of the month
+  const applicable = rates
+    .filter(r => new Date(r.effective_from) <= monthDate)
+    .sort((a, b) => new Date(b.effective_from).getTime() - new Date(a.effective_from).getTime());
+  return applicable.length > 0 ? applicable[0].amount : DEFAULT_RATE;
+}
+
+/** Returns the current (latest) contribution rate. */
+export function getCurrentRate(rates: ContributionRate[]): number {
+  if (!rates || rates.length === 0) return DEFAULT_RATE;
+  return [...rates].sort(
+    (a, b) => new Date(b.effective_from).getTime() - new Date(a.effective_from).getTime()
+  )[0].amount;
+}
+
 
 export function formatDate(date: Date | string | undefined): string {
   if (!date) return 'N/A';

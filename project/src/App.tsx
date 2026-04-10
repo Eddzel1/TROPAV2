@@ -9,7 +9,7 @@ import { DuesCollection } from './components/DuesCollection/DuesCollection';
 import { Reports } from './components/Reports/Reports';
 import { Settings } from './components/Settings/Settings';
 import { TropaFinder } from './components/TropaFinder/TropaFinder';
-import { useHouseholds, useFamilyMembers, useDuesPayments, useUsers, useLocations, useAuthProfile } from './hooks/useSupabase';
+import { useHouseholds, useFamilyMembers, useDuesPayments, useUsers, useLocations, useAuthProfile, useContributionRates } from './hooks/useSupabase';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -23,6 +23,7 @@ function App() {
   const { users, createUser, updateUser, deleteUser } = useUsers();
   const { locations, createLocation, updateLocation, deleteLocation } = useLocations();
   const { profile: currentUser, loading: profileLoading } = useAuthProfile();
+  const { rates: contributionRates, createRate: createContributionRate } = useContributionRates();
 
   React.useEffect(() => {
     const checkAuth = async () => {
@@ -147,6 +148,7 @@ function App() {
             payments={payments}
             members={members}
             households={households}
+            contributionRates={contributionRates}
             onCreatePayment={async (p) => createPayment({ ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : new Date().toISOString() } as any) as any}
             onUpdatePayment={async (id, p) => updatePayment(id, { ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : undefined } as any) as any}
             onDeletePayment={deletePayment}
@@ -160,6 +162,7 @@ function App() {
             members={members}
             payments={payments}
             locations={locations}
+            contributionRates={contributionRates}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );
@@ -174,6 +177,8 @@ function App() {
           <Settings
             users={users}
             locations={locations}
+            contributionRates={contributionRates}
+            onCreateContributionRate={createContributionRate}
             onCreateUser={async (u) => createUser({ ...u, last_login: u.last_login ? u.last_login.toISOString() : null } as any) as any}
             onUpdateUser={async (id, u) => updateUser(id, { ...u, last_login: u.last_login ? u.last_login.toISOString() : undefined } as any) as any}
             onDeleteUser={deleteUser}

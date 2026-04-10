@@ -104,3 +104,12 @@ export interface Voter {
   status?: string | null;
   note?: string | null;
 }
+
+export interface ContributionRate {
+  id: string;
+  amount: number;
+  effective_from: Date;   // first date this rate applies
+  notes?: string;
+  created_by: string;
+  created_at: Date;
+}

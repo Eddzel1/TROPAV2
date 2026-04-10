@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, supabaseHelpers } from '../lib/supabase';
 import { Database } from '../types/database';
-import { Household, FamilyMember, DuesPayment, User, Location } from '../types';
+import { Household, FamilyMember, DuesPayment, User, Location, ContributionRate } from '../types';
 
 type Tables = Database['public']['Tables'];
 
@@ -829,3 +829,71 @@ export function useAuthProfile() {
 
     return { profile, loading };
 }
+
+// Custom hook for contribution rates
+// Note: Uses (supabase as any) because the contribution_rates table isn't in the
+// generated types yet. Run the SQL migration then regenerate types to fix.
+export function useContributionRates() {
+    const [rates, setRates] = useState<ContributionRate[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchRates = async () => {
+        try {
+            setLoading(true);
+            const { data, error: sbError } = await (supabase as any)
+                .from('contribution_rates')
+                .select('*')
+                .order('effective_from', { ascending: true });
+            if (sbError) throw sbError;
+            const transformed: ContributionRate[] = ((data as any[]) || []).map((r: any) => ({
+                id: r.id as string,
+                amount: Number(r.amount),
+                effective_from: new Date(r.effective_from),
+                notes: r.notes || undefined,
+                created_by: r.created_by as string,
+                created_at: new Date(r.created_at),
+            }));
+            setRates(transformed);
+            setError(null);
+        } catch (err) {
+            console.error('Error fetching contribution rates:', err);
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const createRate = async (amount: number, effectiveFrom: string, notes?: string): Promise<ContributionRate> => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const createdBy = session?.user?.email || 'unknown';
+            const { data, error: sbError } = await (supabase as any)
+                .from('contribution_rates')
+                .insert({ amount, effective_from: effectiveFrom, notes: notes || null, created_by: createdBy })
+                .select()
+                .single();
+            if (sbError) throw sbError;
+            const row = data as any;
+            const transformed: ContributionRate = {
+                id: row.id as string,
+                amount: Number(row.amount),
+                effective_from: new Date(row.effective_from),
+                notes: row.notes || undefined,
+                created_by: row.created_by as string,
+                created_at: new Date(row.created_at),
+            };
+            setRates(prev => [...prev, transformed].sort(
+                (a, b) => a.effective_from.getTime() - b.effective_from.getTime()
+            ));
+            return transformed;
+        } catch (err) {
+            console.error('Error creating contribution rate:', err);
+            throw err;
+        }
+    };
+
+    useEffect(() => { fetchRates(); }, []);
+
+    return { rates, loading, error, refetch: fetchRates, createRate };
+}

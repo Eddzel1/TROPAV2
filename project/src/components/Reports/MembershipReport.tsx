@@ -1,16 +1,20 @@
 
-import { DuesPayment, Household, FamilyMember } from '../../types';
-import { Users, UserCheck, Shield, Calendar, TrendingUp, PieChart } from 'lucide-react';
+import { useState } from 'react';
+import { DuesPayment, Household, FamilyMember, ContributionRate } from '../../types';
+import { Users, UserCheck, Shield, Calendar, TrendingUp, PieChart, Printer } from 'lucide-react';
 import { getOutstandingMonths } from '../../lib/utils';
+import { PrintFilterModal } from './PrintFilterModal';
 
 interface MembershipReportProps {
   households: Household[];
   members: FamilyMember[];
   payments: DuesPayment[];
   summaryStats: { totalHouseholds: number; totalMembers: number; cooperativeMembers: number; membershipRate: number; };
+  contributionRates: ContributionRate[];
 }
 
-export function MembershipReport({ households, members, payments, summaryStats }: MembershipReportProps) {
+export function MembershipReport({ households, members, payments, summaryStats, contributionRates }: MembershipReportProps) {
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const ageGroups = members.reduce((acc, member) => {
     if (!member.age) return acc;
     let group = 'Unknown';
@@ -51,8 +55,27 @@ export function MembershipReport({ households, members, payments, summaryStats }
 
   return (
     <div className="space-y-6">
+      {showPrintModal && (
+        <PrintFilterModal
+          mode="roster"
+          households={households}
+          members={members}
+          payments={payments}
+          contributionRates={contributionRates}
+          onClose={() => setShowPrintModal(false)}
+        />
+      )}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"><Users className="w-5 h-5" />Membership Overview</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2"><Users className="w-5 h-5" />Membership Overview</h3>
+          <button
+            onClick={() => setShowPrintModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            Print Household Roster
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center"><div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3"><Users className="w-8 h-8 text-blue-600" /></div><p className="text-2xl font-bold text-gray-900">{summaryStats.totalMembers}</p><p className="text-sm text-gray-600">Total Members</p></div>
           <div className="text-center"><div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3"><UserCheck className="w-8 h-8 text-green-600" /></div><p className="text-2xl font-bold text-gray-900">{summaryStats.cooperativeMembers}</p><p className="text-sm text-gray-600">TROPA Members</p><p className="text-xs text-green-600 font-medium">{summaryStats.membershipRate.toFixed(1)}% of total</p></div>

@@ -5,7 +5,7 @@ import { PaymentReport } from './PaymentReport';
 import { LocationReport } from './LocationReport';
 import { SectorReport } from './SectorReport';
 import { ExportReport } from './ExportReport';
-import { Household, FamilyMember, DuesPayment, Location } from '../../types';
+import { Household, FamilyMember, DuesPayment, Location, ContributionRate } from '../../types';
 import { Users, CreditCard, MapPin, PieChart, Download, Calendar, TrendingUp } from 'lucide-react';
 
 interface ReportsProps {
@@ -13,10 +13,11 @@ interface ReportsProps {
   members: FamilyMember[];
   payments: DuesPayment[];
   locations: Location[];
+  contributionRates: ContributionRate[];
   onMenuClick: () => void;
 }
 
-export function Reports({ households, members, payments, locations, onMenuClick }: ReportsProps) {
+export function Reports({ households, members, payments, locations, contributionRates, onMenuClick }: ReportsProps) {
   const [activeTab, setActiveTab] = useState('membership');
   const [dateRange, setDateRange] = useState({ startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0] });
 
@@ -45,12 +46,12 @@ export function Reports({ households, members, payments, locations, onMenuClick 
 
   const renderActiveTab = () => {
     switch (activeTab) {
-      case 'membership': return <MembershipReport households={households} members={members} payments={payments} summaryStats={summaryStats} />;
-      case 'payments': return <PaymentReport payments={filteredPayments} members={members} households={households} summaryStats={summaryStats} />;
+      case 'membership': return <MembershipReport households={households} members={members} payments={payments} summaryStats={summaryStats} contributionRates={contributionRates} />;
+      case 'payments': return <PaymentReport payments={filteredPayments} members={members} households={households} summaryStats={summaryStats} contributionRates={contributionRates} />;
       case 'locations': return <LocationReport households={households} members={members} locations={locations} />;
       case 'sectors': return <SectorReport members={members} households={households} />;
       case 'export': return <ExportReport households={households} members={members} payments={filteredPayments} locations={locations} />;
-      default: return <MembershipReport households={households} members={members} payments={payments} summaryStats={summaryStats} />;
+      default: return <MembershipReport households={households} members={members} payments={payments} summaryStats={summaryStats} contributionRates={contributionRates} />;
     }
   };
 

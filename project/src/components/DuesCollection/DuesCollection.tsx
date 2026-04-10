@@ -3,14 +3,15 @@ import { Header } from '../Layout/Header';
 import { PaymentTable } from './PaymentTable';
 import { PaymentForm } from './PaymentForm';
 import { UnpaidMembersTable } from './UnpaidMembersTable';
-import { DuesPayment, FamilyMember, Household } from '../../types';
+import { DuesPayment, FamilyMember, Household, ContributionRate } from '../../types';
 import { Plus, Search, CreditCard, DollarSign, Calendar, AlertCircle } from 'lucide-react';
-import { getOutstandingMonths } from '../../lib/utils';
+import { getOutstandingMonths, getCurrentRate } from '../../lib/utils';
 
 interface DuesCollectionProps {
   payments: DuesPayment[];
   members: FamilyMember[];
   households: Household[];
+  contributionRates: ContributionRate[];
   onCreatePayment: (payment: Omit<DuesPayment, 'id' | 'created_date' | 'updated_date'>) => Promise<DuesPayment>;
   onUpdatePayment: (id: string, updates: Partial<DuesPayment>) => Promise<DuesPayment>;
   onDeletePayment: (id: string) => Promise<void>;
@@ -19,7 +20,7 @@ interface DuesCollectionProps {
 
 type ViewMode = 'payments' | 'unpaid';
 
-export function DuesCollection({ payments, members, households, onCreatePayment, onUpdatePayment, onDeletePayment, onMenuClick }: DuesCollectionProps) {
+export function DuesCollection({ payments, members, households, contributionRates, onCreatePayment, onUpdatePayment, onDeletePayment, onMenuClick }: DuesCollectionProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<DuesPayment | undefined>();
   const [viewMode, setViewMode] = useState<ViewMode>('payments');
@@ -75,15 +76,18 @@ export function DuesCollection({ payments, members, households, onCreatePayment,
   const uniqueLGUs = [...new Set(households.map(h => h.lgu).filter(Boolean))].sort();
   const uniqueBarangays = [...new Set(households.map(h => h.barangay).filter(Boolean))].sort();
 
+  const currentRate = getCurrentRate(contributionRates);
+
   return (
     <div className="flex-1 bg-gray-50 min-h-0 overflow-auto">
       <Header title="Dues Collection" subtitle="Record and manage membership dues payments" onMenuClick={onMenuClick} />
       <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Total Payments</p><p className="text-2xl font-bold text-gray-900">{totalPayments}</p></div><div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center"><CreditCard className="w-6 h-6 text-white" /></div></div></div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Total Collection</p><p className="text-2xl font-bold text-gray-900">₱{totalAmount.toLocaleString()}</p></div><div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center"><DollarSign className="w-6 h-6 text-white" /></div></div></div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">This Month</p><p className="text-2xl font-bold text-gray-900">₱{monthlyCollection.toLocaleString()}</p><p className="text-xs text-gray-500">{currentMonthISO}</p></div><div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center"><Calendar className="w-6 h-6 text-white" /></div></div></div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Outstanding Members</p><p className="text-2xl font-bold text-gray-900">{outstandingMembers}</p></div><div className={`w-12 h-12 ${outstandingMembers > 0 ? 'bg-amber-500' : 'bg-green-500'} rounded-full flex items-center justify-center`}><AlertCircle className="w-6 h-6 text-white" /></div></div></div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Outstanding</p><p className="text-2xl font-bold text-gray-900">{outstandingMembers}</p><p className="text-xs text-gray-500">members w/ arrears</p></div><div className={`w-12 h-12 ${outstandingMembers > 0 ? 'bg-amber-500' : 'bg-green-500'} rounded-full flex items-center justify-center`}><AlertCircle className="w-6 h-6 text-white" /></div></div></div>
+          <div className="bg-white rounded-xl shadow-sm border border-teal-200 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Monthly Rate</p><p className="text-2xl font-bold text-teal-700">₱{currentRate.toLocaleString()}</p><p className="text-xs text-gray-500">per member / month</p></div><div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center"><DollarSign className="w-6 h-6 text-teal-600" /></div></div></div>
         </div>
         <div className="flex justify-center mb-6">
           <div className="bg-white p-1 rounded-lg border border-gray-200 flex shadow-sm">

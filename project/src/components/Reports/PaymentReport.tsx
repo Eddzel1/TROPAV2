@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
-import { DuesPayment, Household, FamilyMember } from '../../types';
-import { CreditCard, TrendingUp, Calendar, Activity, PieChart } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { DuesPayment, Household, FamilyMember, ContributionRate } from '../../types';
+import { CreditCard, TrendingUp, Calendar, Activity, PieChart, Printer } from 'lucide-react';
+import { PrintFilterModal } from './PrintFilterModal';
 
 interface PaymentReportProps {
     payments: DuesPayment[];
@@ -15,9 +16,11 @@ interface PaymentReportProps {
         averagePayment: number;
         membershipRate: number;
     };
+    contributionRates: ContributionRate[];
 }
 
-export function PaymentReport({ payments, summaryStats }: PaymentReportProps) {
+export function PaymentReport({ payments, members, households, summaryStats, contributionRates }: PaymentReportProps) {
+    const [showPrintModal, setShowPrintModal] = useState(false);
     const paymentsByMethod = useMemo(() => {
         return payments.reduce((acc, p) => {
             acc[p.payment_method] = (acc[p.payment_method] || 0) + p.amount;
@@ -42,11 +45,30 @@ export function PaymentReport({ payments, summaryStats }: PaymentReportProps) {
 
     return (
         <div className="space-y-6">
+            {showPrintModal && (
+                <PrintFilterModal
+                    mode="ledger"
+                    households={households}
+                    members={members}
+                    payments={payments}
+                    contributionRates={contributionRates}
+                    onClose={() => setShowPrintModal(false)}
+                />
+            )}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <CreditCard className="w-5 h-5" />
-                    Revenue Overview
-                </h3>
+            <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <CreditCard className="w-5 h-5" />
+                        Revenue Overview
+                    </h3>
+                    <button
+                        onClick={() => setShowPrintModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                        <Printer className="w-4 h-4" />
+                        Print Payment Ledger
+                    </button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="text-center">
                         <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-3">
