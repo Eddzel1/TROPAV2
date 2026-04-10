@@ -489,8 +489,8 @@ export function printTreasurerSheet({
         </tr>`;
     }).join('');
 
-    // Pad with blank rows to guarantee exactly 10 rows per household
-    const TARGET_ROWS = 10;
+    // Pad with blank rows to guarantee at least 7 rows per household minimum
+    const TARGET_ROWS = 7;
     const currentRows = coopMembers.length;
     for (let i = currentRows; i < TARGET_ROWS; i++) {
         const rowStyle = i % 2 === 1 ? 'background:#f7f7f7;' : '';
@@ -516,7 +516,7 @@ export function printTreasurerSheet({
   }
 
   // ── chunk into pages ──────────────────────────────────────────────────────
-  const TREASURER_HH_PER_PAGE = 4;
+  const TREASURER_HH_PER_PAGE = 6;
   const chunks: Household[][] = [];
   for (let i = 0; i < coopHouseholds.length; i += TREASURER_HH_PER_PAGE) {
     chunks.push(coopHouseholds.slice(i, i + TREASURER_HH_PER_PAGE));
