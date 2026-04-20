@@ -62,7 +62,7 @@ export function Settings({
   const handleEditLocation = (location: Location) => { setEditingLocation(location); setIsFormOpen(true); };
   const handleDeleteLocation = async (id: string) => { if (window.confirm('Are you sure you want to delete this location?')) { try { await onDeleteLocation(id); } catch { alert('Failed to delete location.'); } } };
   const handleSaveLocation = async (locationData: Partial<Location>) => { try { if (editingLocation) { await onUpdateLocation(editingLocation.id, locationData); } else { await onCreateLocation(locationData as Omit<Location, 'id' | 'created_date' | 'updated_date'>); } setEditingLocation(undefined); } catch { alert('Failed to save location.'); } };
-  const handleSave = async (userData: Partial<User>) => { try { if (editingUser) { await onUpdateUser(editingUser.id, userData); } else { await onCreateUser(userData as Omit<User, 'id' | 'created_date' | 'updated_date'>); } setEditingUser(undefined); } catch { alert('Failed to save user.'); } };
+  const handleSave = async (userData: Partial<User>) => { try { if (editingUser) { await onUpdateUser(editingUser.id, userData); } else { await onCreateUser(userData as Omit<User, 'id' | 'created_date' | 'updated_date'>); } setEditingUser(undefined); } catch (e) { console.error('Create User Error:', e); alert('Failed to save user: ' + (e instanceof Error ? e.message : String(e))); } };
 
   const handleAddRate = async () => {
     setRateError('');
