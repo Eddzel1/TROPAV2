@@ -99,10 +99,10 @@ export function Households({ households, members, locations, onCreateMember, onD
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const newIds = [...new Set([...selectedIds, ...paginatedHouseholds.map(h => h.id)])];
+      const newIds = [...new Set([...selectedIds, ...filteredHouseholds.map(h => h.id)])];
       setSelectedIds(newIds);
     } else {
-      setSelectedIds(prev => prev.filter(id => !paginatedHouseholds.some(h => h.id === id)));
+      setSelectedIds(prev => prev.filter(id => !filteredHouseholds.some(h => h.id === id)));
     }
   };
 
@@ -118,6 +118,8 @@ export function Households({ households, members, locations, onCreateMember, onD
       }));
       setSelectedIds([]);
       setBulkPurok('');
+      setFilterPuroks([]);
+      setPurokSearch('');
       alert('Successfully updated purok for selected households!');
     } catch (error) {
       console.error('Failed to update bulk purok:', error);
@@ -364,7 +366,12 @@ export function Households({ households, members, locations, onCreateMember, onD
           locations={locations}
           isOpen={!!editingHousehold}
           onClose={() => setEditingHousehold(undefined)}
-          onSave={onUpdateHousehold}
+          onSave={async (id, updates) => {
+            const result = await onUpdateHousehold(id, updates);
+            setFilterPuroks([]);
+            setPurokSearch('');
+            return result;
+          }}
         />
       )}
     </div>
