@@ -11,9 +11,12 @@ interface HouseholdTableProps {
   onEdit: (household: Household) => void;
   onDelete: (id: string) => void;
   onAddMember: (household: Household) => void;
+  selectedIds: string[];
+  onToggleSelection: (id: string) => void;
+  onSelectAll: (checked: boolean) => void;
 }
 
-export function HouseholdTable({ households, members, sortField, sortDirection, onSort, onView, onEdit, onDelete, onAddMember }: HouseholdTableProps) {
+export function HouseholdTable({ households, members, sortField, sortDirection, onSort, onView, onEdit, onDelete, onAddMember, selectedIds, onToggleSelection, onSelectAll }: HouseholdTableProps) {
   const SortIcon = ({ field }: { field: keyof Household }) => {
     if (sortField !== field) return null;
     return sortDirection === 'asc' ? <ArrowUp className="w-4 h-4 ml-1 inline-block" /> : <ArrowDown className="w-4 h-4 ml-1 inline-block" />;
@@ -25,6 +28,14 @@ export function HouseholdTable({ households, members, sortField, sortDirection, 
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
+              <th className="p-4 w-12">
+                <input 
+                  type="checkbox" 
+                  checked={households.length > 0 && households.every(h => selectedIds.includes(h.id))}
+                  onChange={(e) => onSelectAll(e.target.checked)} 
+                  className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+                />
+              </th>
               <th
                 className="text-left p-4 text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
                 onClick={() => onSort('household_name')}
@@ -49,7 +60,15 @@ export function HouseholdTable({ households, members, sortField, sortDirection, 
           </thead>
           <tbody>
             {households.map((household) => (
-              <tr key={household.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+              <tr key={household.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${selectedIds.includes(household.id) ? 'bg-teal-50/30' : ''}`}>
+                <td className="p-4">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.includes(household.id)}
+                    onChange={() => onToggleSelection(household.id)}
+                    className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+                  />
+                </td>
                 <td className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">

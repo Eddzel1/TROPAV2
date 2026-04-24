@@ -4,7 +4,7 @@ import { HouseholdTable } from './HouseholdTable';
 import { HouseholdView } from './HouseholdView';
 import { HouseholdForm } from './HouseholdForm';
 import { Household, FamilyMember, Location } from '../../types';
-import { Search, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Info, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { BulkAddMemberForm } from '../Members/BulkAddMemberForm';
 
 interface HouseholdsProps {
@@ -26,9 +26,15 @@ export function Households({ households, members, locations, onCreateMember, onD
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLGU, setFilterLGU] = useState('');
   const [filterBarangay, setFilterBarangay] = useState('');
+  const [filterPuroks, setFilterPuroks] = useState<string[]>([]);
+  const [purokSearch, setPurokSearch] = useState('');
+  const [isPurokDropdownOpen, setIsPurokDropdownOpen] = useState(false);
   const [sortField, setSortField] = useState<keyof Household>('household_name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkPurok, setBulkPurok] = useState('');
+  const [isUpdatingBulk, setIsUpdatingBulk] = useState(false);
   const itemsPerPage = 8;
 
   const filteredHouseholds = households.filter(household => {
@@ -37,7 +43,8 @@ export function Households({ households, members, locations, onCreateMember, onD
       household.barangay.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesLGU = !filterLGU || household.lgu === filterLGU;
     const matchesBarangay = !filterBarangay || household.barangay === filterBarangay;
-    return matchesSearch && matchesLGU && matchesBarangay;
+    const matchesPurok = filterPuroks.length === 0 || filterPuroks.includes(household.purok);
+    return matchesSearch && matchesLGU && matchesBarangay && matchesPurok;
   }).sort((a, b) => {
     let aVal: any = a[sortField];
     let bVal: any = b[sortField];
@@ -82,12 +89,58 @@ export function Households({ households, members, locations, onCreateMember, onD
     }
   };
 
+  const handleToggleFilterPurok = (purok: string) => {
+    setFilterPuroks(prev => prev.includes(purok) ? prev.filter(p => p !== purok) : [...prev, purok]);
+  };
+
+  const handleToggleSelection = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const newIds = [...new Set([...selectedIds, ...paginatedHouseholds.map(h => h.id)])];
+      setSelectedIds(newIds);
+    } else {
+      setSelectedIds(prev => prev.filter(id => !paginatedHouseholds.some(h => h.id === id)));
+    }
+  };
+
+  const handleBulkUpdatePurok = async () => {
+    if (!bulkPurok.trim() || selectedIds.length === 0) return;
+    setIsUpdatingBulk(true);
+    try {
+      await Promise.all(selectedIds.map(id => {
+        const household = households.find(h => h.id === id);
+        if (household) {
+          return onUpdateHousehold(id, { ...household, purok: bulkPurok });
+        }
+      }));
+      setSelectedIds([]);
+      setBulkPurok('');
+      alert('Successfully updated purok for selected households!');
+    } catch (error) {
+      console.error('Failed to update bulk purok:', error);
+      alert('Failed to update some households. Please try again.');
+    } finally {
+      setIsUpdatingBulk(false);
+    }
+  };
+
   const uniqueLGUs = [...new Set(households.map(h => h.lgu))].sort();
   const formBarangays = locations
     .filter(l => !filterLGU || l.lgu === filterLGU)
     .map(l => l.barangay)
     .filter((value, index, self) => self.indexOf(value) === index)
     .sort();
+
+  const formPuroks = households
+    .filter(h => (!filterLGU || h.lgu === filterLGU) && (!filterBarangay || h.barangay === filterBarangay))
+    .map(h => h.purok)
+    .filter((value, index, self) => value && self.indexOf(value) === index)
+    .sort();
+
+  const filteredFormPuroks = formPuroks.filter(p => p.toLowerCase().includes(purokSearch.toLowerCase()));
 
   const handleSort = (field: keyof Household) => {
     if (field === sortField) {
@@ -101,7 +154,7 @@ export function Households({ households, members, locations, onCreateMember, onD
   // Reset page to 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterLGU, filterBarangay]);
+  }, [searchTerm, filterLGU, filterBarangay, filterPuroks]);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -146,15 +199,15 @@ export function Households({ households, members, locations, onCreateMember, onD
             <input type="text" placeholder="Search households..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-full" />
           </div>
-          <div className="flex gap-4">
-            <select value={filterLGU} onChange={(e) => { setFilterLGU(e.target.value); setFilterBarangay(''); }}
+          <div className="flex flex-wrap gap-4">
+            <select value={filterLGU} onChange={(e) => { setFilterLGU(e.target.value); setFilterBarangay(''); setFilterPuroks([]); }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]">
               <option value="">All LGUs</option>
               {uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}
             </select>
             <select
               value={filterBarangay}
-              onChange={(e) => setFilterBarangay(e.target.value)}
+              onChange={(e) => { setFilterBarangay(e.target.value); setFilterPuroks([]); }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]"
             >
               <option value="">All Barangays</option>
@@ -162,8 +215,78 @@ export function Households({ households, members, locations, onCreateMember, onD
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
+            <div className="relative">
+              <button
+                onClick={() => setIsPurokDropdownOpen(!isPurokDropdownOpen)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-56 bg-white text-left flex items-center justify-between"
+              >
+                <span className="truncate mr-2 text-sm">
+                  {filterPuroks.length === 0 ? 'All Puroks' : `${filterPuroks.length} Purok${filterPuroks.length > 1 ? 's' : ''} Selected`}
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
+              </button>
+              
+              {isPurokDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsPurokDropdownOpen(false)}></div>
+                  <div className="absolute z-20 top-full left-0 mt-1 w-full min-w-[240px] bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 flex flex-col">
+                    <div className="p-2 border-b border-gray-100">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search purok..."
+                          value={purokSearch}
+                          onChange={(e) => setPurokSearch(e.target.value)}
+                          className="pl-8 pr-2 py-1.5 w-full text-sm border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="p-2 flex flex-col gap-1 overflow-y-auto">
+                      {filteredFormPuroks.map(p => (
+                        <label key={p} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer text-sm">
+                          <input
+                            type="checkbox"
+                            checked={filterPuroks.includes(p)}
+                            onChange={() => handleToggleFilterPurok(p)}
+                            className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+                          />
+                          <span className="truncate">{p}</span>
+                        </label>
+                      ))}
+                      {filteredFormPuroks.length === 0 && (
+                        <div className="p-2 text-sm text-gray-500 text-center">No puroks found</div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
+
+        {selectedIds.length > 0 && (
+          <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span className="text-teal-800 font-medium">{selectedIds.length} household{selectedIds.length > 1 ? 's' : ''} selected</span>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <input 
+                type="text" 
+                placeholder="New Purok..." 
+                value={bulkPurok} 
+                onChange={e => setBulkPurok(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm w-full sm:w-auto min-w-[200px]"
+              />
+              <button 
+                onClick={handleBulkUpdatePurok}
+                disabled={isUpdatingBulk || !bulkPurok.trim()}
+                className="w-full sm:w-auto px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors whitespace-nowrap"
+              >
+                {isUpdatingBulk ? 'Updating...' : 'Update Purok'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <HouseholdTable
           households={paginatedHouseholds}
           members={members}
@@ -174,6 +297,9 @@ export function Households({ households, members, locations, onCreateMember, onD
           onEdit={setEditingHousehold}
           onDelete={handleDelete}
           onAddMember={handleAddMember}
+          selectedIds={selectedIds}
+          onToggleSelection={handleToggleSelection}
+          onSelectAll={handleSelectAll}
         />
 
         {/* Pagination Controls */}
