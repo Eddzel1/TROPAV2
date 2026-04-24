@@ -1,6 +1,6 @@
 
 import { Household, FamilyMember } from '../../types';
-import { X, Home, MapPin, Users, UserCheck, Phone, Calendar, Shield, User, UserPlus, Edit } from 'lucide-react';
+import { X, Home, MapPin, Users, UserCheck, Phone, Calendar, Shield, User, UserPlus, Edit, Trash2 } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 
 interface HouseholdViewProps {
@@ -10,6 +10,7 @@ interface HouseholdViewProps {
   onClose: () => void;
   onAddMember: () => void;
   onEdit: () => void;
+  onDeleteMember?: (id: string) => void;
 }
 
 const sectorColors: Record<string, string> = {
@@ -22,11 +23,17 @@ const sectorColors: Record<string, string> = {
   'General': 'bg-gray-100 text-gray-700'
 };
 
-export function HouseholdView({ household, members, isOpen, onClose, onAddMember, onEdit }: HouseholdViewProps) {
+export function HouseholdView({ household, members, isOpen, onClose, onAddMember, onEdit, onDeleteMember }: HouseholdViewProps) {
   if (!isOpen) return null;
   const householdLeader = members.find(m => m.is_household_leader);
   const cooperativeMembers = members.filter(m => m.is_cooperative_member);
   const voters = members.filter(m => m.is_voter);
+
+  const handleDeleteMember = (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to remove ${name} from the household?`)) {
+      onDeleteMember?.(id);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -75,10 +82,21 @@ export function HouseholdView({ household, members, isOpen, onClose, onAddMember
                     {householdLeader.age && <div className="flex items-center gap-1"><Calendar className="w-3 h-3" />{householdLeader.age} years old</div>}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <div className="flex flex-wrap gap-1">{(householdLeader.sector || 'General').split(',').map(s => s.trim()).filter(Boolean).map(sector => (<span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>))}</div>
-                  {householdLeader.is_cooperative_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">TROPA Member</span>}
-                  {householdLeader.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <div className="flex flex-wrap gap-1">{(householdLeader.sector || 'General').split(',').map(s => s.trim()).filter(Boolean).map(sector => (<span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>))}</div>
+                    {householdLeader.is_cooperative_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">TROPA Member</span>}
+                    {householdLeader.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}
+                  </div>
+                  {onDeleteMember && (
+                    <button 
+                      onClick={() => handleDeleteMember(householdLeader.id, householdLeader.firstname)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove Member"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -99,10 +117,21 @@ export function HouseholdView({ household, members, isOpen, onClose, onAddMember
                         {member.age && <div className="flex items-center gap-1"><Calendar className="w-3 h-3" />{member.age} years old</div>}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <div className="flex flex-wrap gap-1">{(member.sector || 'General').split(',').map(s => s.trim()).filter(Boolean).map(sector => (<span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>))}</div>
-                      {member.is_cooperative_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">TROPA Member</span>}
-                      {member.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex flex-wrap gap-1">{(member.sector || 'General').split(',').map(s => s.trim()).filter(Boolean).map(sector => (<span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>))}</div>
+                        {member.is_cooperative_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">TROPA Member</span>}
+                        {member.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}
+                      </div>
+                      {onDeleteMember && (
+                        <button 
+                          onClick={() => handleDeleteMember(member.id, member.firstname)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove Member"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

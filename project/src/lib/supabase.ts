@@ -76,6 +76,18 @@ export const supabaseHelpers = {
     const { data, error } = await supabase.from('households').update(updates).eq('id', id).select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error(`Household with id ${id} not found`);
+
+    if (updates.purok !== undefined) {
+      const { error: memberError } = await supabase
+        .from('family_members')
+        .update({ purok: updates.purok })
+        .eq('household_id', id);
+        
+      if (memberError) {
+        console.error('Failed to update purok for household members:', memberError);
+      }
+    }
+
     return data;
   },
 

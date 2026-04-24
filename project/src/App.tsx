@@ -18,7 +18,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { households, updateHousehold, deleteHousehold, refetch: refetchHouseholds } = useHouseholds();
-  const { members, createMember, updateMember, deleteMember } = useFamilyMembers();
+  const { members, createMember, updateMember, deleteMember, refetch: refetchMembers } = useFamilyMembers();
   const { payments, createPayment, updatePayment, deletePayment } = useDuesPayments();
   const { users, createUser, updateUser, deleteUser } = useUsers();
   const { locations, createLocation, updateLocation, deleteLocation } = useLocations();
@@ -119,8 +119,13 @@ function App() {
               }
               return newMember as any;
             }}
-            onUpdateHousehold={async (id, h) => updateHousehold(id, { ...h, created_date: h.created_date ? h.created_date.toISOString() : undefined } as any) as any}
+            onUpdateHousehold={async (id, h) => {
+              const result = await updateHousehold(id, { ...h, created_date: h.created_date ? h.created_date.toISOString() : undefined } as any);
+              refetchMembers();
+              return result as any;
+            }}
             onDeleteHousehold={deleteHousehold}
+            onDeleteMember={deleteMember}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );

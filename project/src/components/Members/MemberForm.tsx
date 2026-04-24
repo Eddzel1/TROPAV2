@@ -307,7 +307,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
             middlename: voter.middlename || '',
             extension: voter.ext || '',
             barangay: prev.barangay || voter.brgy || '',
-            purok: prev.purok || voter.purok || '',
+            purok: prev.purok || '',
             lgu: prev.lgu || voter.lgu || '',
             is_voter: true,
             listing_status: voter.status || '',

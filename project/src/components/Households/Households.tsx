@@ -14,10 +14,11 @@ interface HouseholdsProps {
   onCreateMember: (member: Omit<FamilyMember, 'id' | 'created_date' | 'updated_date'>) => Promise<FamilyMember>;
   onUpdateHousehold: (id: string, updates: Partial<Household>) => Promise<Household>;
   onDeleteHousehold: (id: string) => Promise<void>;
+  onDeleteMember: (id: string) => Promise<void>;
   onMenuClick: () => void;
 }
 
-export function Households({ households, members, locations, onCreateMember, onDeleteHousehold, onUpdateHousehold, onMenuClick }: HouseholdsProps) {
+export function Households({ households, members, locations, onCreateMember, onDeleteHousehold, onDeleteMember, onUpdateHousehold, onMenuClick }: HouseholdsProps) {
   const [viewingHousehold, setViewingHousehold] = useState<Household | undefined>();
   const [editingHousehold, setEditingHousehold] = useState<Household | undefined>();
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -219,7 +220,7 @@ export function Households({ households, members, locations, onCreateMember, onD
       </div>
       {viewingHousehold && (
         <HouseholdView household={viewingHousehold} members={members.filter(m => m.household_id === viewingHousehold.id)}
-          isOpen={!!viewingHousehold} onClose={() => setViewingHousehold(undefined)} onAddMember={() => { setViewingHousehold(undefined); handleAddMember(viewingHousehold); }} onEdit={() => { setViewingHousehold(undefined); setEditingHousehold(viewingHousehold); }} />
+          isOpen={!!viewingHousehold} onClose={() => setViewingHousehold(undefined)} onAddMember={() => { setViewingHousehold(undefined); handleAddMember(viewingHousehold); }} onEdit={() => { setViewingHousehold(undefined); setEditingHousehold(viewingHousehold); }} onDeleteMember={onDeleteMember} />
       )}
 
       {addMemberHousehold && (
