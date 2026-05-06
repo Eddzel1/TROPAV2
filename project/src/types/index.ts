@@ -42,6 +42,8 @@ export interface FamilyMember {
 
   profile_picture_url?: string;
   profile_picture_path?: string;
+  phic_member?: boolean;
+  phic_no?: string;
   created_date: Date;
   updated_date: Date;
 }
