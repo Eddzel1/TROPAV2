@@ -27,6 +27,8 @@ const emptyForm: Partial<FamilyMember> & { household_name?: string } = {
     is_voter: false,
     is_household_leader: false,
     is_cooperative_member: true,
+    phic_member: false,
+    phic_no: '',
 };
 
 export function MemberForm({ member, households, locations, isOpen, onClose, onSave, preSelectedHousehold }: MemberFormProps) {
@@ -698,6 +700,32 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                    <div>
+                                        <label className="flex items-center gap-2 cursor-pointer mt-6">
+                                            <input
+                                                type="checkbox"
+                                                name="phic_member"
+                                                checked={!!formData.phic_member}
+                                                onChange={handleInputChange}
+                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">PhilHealth Member</span>
+                                        </label>
+                                    </div>
+                                    {formData.phic_member && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">PhilHealth Number</label>
+                                            <input
+                                                type="text"
+                                                name="phic_no"
+                                                value={formData.phic_no || ''}
+                                                onChange={handleInputChange}
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

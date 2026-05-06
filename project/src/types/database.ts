@@ -87,6 +87,8 @@ export interface Database {
           listing_status: string | null
           profile_picture_url: string | null
           profile_picture_path: string | null
+          phic_member: boolean | null
+          phic_no: string | null
           created_date: string
           updated_date: string
           created_by: string
@@ -117,6 +119,8 @@ export interface Database {
           listing_status?: string | null
           profile_picture_url?: string | null
           profile_picture_path?: string | null
+          phic_member?: boolean | null
+          phic_no?: string | null
           created_date?: string
           updated_date?: string
           created_by?: string
@@ -147,6 +151,8 @@ export interface Database {
           listing_status?: string | null
           profile_picture_url?: string | null
           profile_picture_path?: string | null
+          phic_member?: boolean | null
+          phic_no?: string | null
           created_date?: string
           updated_date?: string
           created_by?: string

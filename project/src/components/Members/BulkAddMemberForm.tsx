@@ -20,6 +20,8 @@ interface MemberRow {
     sector: FamilyMember['sector'];
     year_level?: string;
     is_voter?: boolean;
+    phic_member?: boolean;
+    phic_no?: string;
 }
 
 const generateTempId = () => Math.random().toString(36).substr(2, 9);
@@ -34,6 +36,8 @@ const createEmptyRow = (householdLastname?: string): MemberRow => ({
     sector: 'General',
     year_level: '',
     is_voter: false,
+    phic_member: false,
+    phic_no: '',
 });
 
 // Format contact number as 09XX-XXX-XXXX
@@ -88,6 +92,10 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
     const handleChange = (id: string, field: keyof MemberRow, value: string) => {
         setRows(rows.map(row => {
             if (row.id !== id) return row;
+
+            if (field === 'phic_member') {
+                return { ...row, phic_member: value === 'true', phic_no: value === 'false' ? '' : row.phic_no };
+            }
 
             let finalValue = value;
             if (field === 'contact_number') {
@@ -180,6 +188,8 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 is_household_leader: false,
                 is_cooperative_member: true,
                 membership_date: new Date(),
+                phic_member: r.phic_member || false,
+                phic_no: r.phic_no || '',
             }));
 
             await onSave(membersToSave);
@@ -222,6 +232,7 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                                         <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">Contact No.</th>
                                         <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">Birthday</th>
                                         <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">Sector</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%]">PHIC</th>
                                         <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%] text-center">Actions</th>
                                     </tr>
                                 </thead>
@@ -322,6 +333,28 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                                                             <option value="High School">High School</option>
                                                             <option value="College">College</option>
                                                         </select>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <div className="flex flex-col gap-1 mt-1">
+                                                    <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!!row.phic_member}
+                                                            onChange={e => handleChange(row.id, 'phic_member', e.target.checked ? 'true' : 'false')}
+                                                            className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                                        />
+                                                        <span className="text-xs font-medium text-gray-700 whitespace-nowrap">Member</span>
+                                                    </label>
+                                                    {row.phic_member && (
+                                                        <input
+                                                            type="text"
+                                                            value={row.phic_no || ''}
+                                                            onChange={e => handleChange(row.id, 'phic_no', e.target.value)}
+                                                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-teal-500"
+                                                            placeholder="PHIC No."
+                                                        />
                                                     )}
                                                 </div>
                                             </td>
