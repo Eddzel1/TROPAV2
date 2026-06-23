@@ -1002,8 +1002,13 @@ export function useFamilyMembersPaginated(householdId?: string) {
     const [page, setPage] = useState(1);
     const limit = 8;
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchLastname, setSearchLastname] = useState('');
+    const [searchFirstname, setSearchFirstname] = useState('');
+    const [searchMiddlename, setSearchMiddlename] = useState('');
     const [filterSector, setFilterSector] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [filterLgu, setFilterLgu] = useState('');
+    const [filterBarangay, setFilterBarangay] = useState('');
 
     const fetchMembers = async () => {
         try {
@@ -1012,9 +1017,14 @@ export function useFamilyMembersPaginated(householdId?: string) {
                 page,
                 limit,
                 searchTerm,
+                searchLastname,
+                searchFirstname,
+                searchMiddlename,
                 householdId,
                 filterSector,
-                filterStatus
+                filterStatus,
+                filterLgu,
+                filterBarangay
             });
 
             const transformedData: FamilyMember[] = data.map(transformFamilyMember);
@@ -1031,7 +1041,7 @@ export function useFamilyMembersPaginated(householdId?: string) {
 
     useEffect(() => {
         fetchMembers();
-    }, [page, limit, searchTerm, householdId, filterSector, filterStatus]);
+    }, [page, limit, searchTerm, searchLastname, searchFirstname, searchMiddlename, householdId, filterSector, filterStatus, filterLgu, filterBarangay]);
 
     return {
         members,
@@ -1043,13 +1053,25 @@ export function useFamilyMembersPaginated(householdId?: string) {
         limit,
         searchTerm,
         setSearchTerm,
+        searchLastname,
+        setSearchLastname,
+        searchFirstname,
+        setSearchFirstname,
+        searchMiddlename,
+        setSearchMiddlename,
         filterSector,
         setFilterSector,
         filterStatus,
         setFilterStatus,
+        filterLgu,
+        setFilterLgu,
+        filterBarangay,
+        setFilterBarangay,
         refetch: fetchMembers
     };
 }
+
+
 
 export function transformPurok(row: any): Purok {
     return {

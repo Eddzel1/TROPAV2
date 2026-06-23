@@ -224,175 +224,186 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
 
                 <div className="p-6 overflow-y-auto flex-1">
                     <form id="bulk-add-form" onSubmit={handleSubmit}>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[12%]">Last Name *</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">First Name *</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%]">Middle Name</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%]">Contact No.</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[12%]">Birthday</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[12%]">Mem. Date *</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[12%]">Sector</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%]">PHIC</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[7%] text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rows.map((row) => (
-                                        <tr key={row.id} className="border-t border-gray-100">
-                                            <td className="p-2 align-top">
-                                                <input
-                                                    type="text"
-                                                    value={row.lastname}
-                                                    onChange={e => handleChange(row.id, 'lastname', e.target.value)}
-                                                    required
-                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                                                    placeholder="Last Name"
-                                                />
-                                            </td>
-                                            <td className="p-2 align-top">
-                                                <input
-                                                    type="text"
-                                                    value={row.firstname}
-                                                    onChange={e => handleChange(row.id, 'firstname', e.target.value)}
-                                                    required
-                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                                                    placeholder="First Name"
-                                                />
-                                            </td>
-                                            <td className="p-2 align-top">
-                                                <input
-                                                    type="text"
-                                                    value={row.middlename}
-                                                    onChange={e => handleChange(row.id, 'middlename', e.target.value)}
-                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                                                    placeholder="Middle Name"
-                                                />
-                                            </td>
-                                            <td className="p-2 align-top">
-                                                <input
-                                                    type="tel"
-                                                    value={row.contact_number}
-                                                    onChange={e => handleChange(row.id, 'contact_number', e.target.value)}
-                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                                                    placeholder="09XX-XXX-XXXX"
-                                                />
-                                            </td>
-                                            <td className="p-2 align-top">
-                                                <input
-                                                    type="date"
-                                                    value={row.birthdate}
-                                                    onChange={e => handleChange(row.id, 'birthdate', e.target.value)}
-                                                    required
-                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-sans"
-                                                />
-                                            </td>
-                                            <td className="p-2 align-top">
-                                                <input
-                                                    type="date"
-                                                    value={row.membership_date || ''}
-                                                    onChange={e => handleChange(row.id, 'membership_date', e.target.value)}
-                                                    required
-                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-sans"
-                                                />
-                                            </td>
-                                            <td className="p-2 align-top">
-                                                <div className="flex flex-col gap-2 relative">
-                                                    <details className="group relative">
-                                                        <summary className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg cursor-pointer list-none flex justify-between items-center bg-white overflow-hidden text-ellipsis whitespace-nowrap">
-                                                            <span>{row.sector || 'General'}</span>
-                                                            <span className="text-gray-400 text-xs">▼</span>
-                                                        </summary>
-                                                        <div className="absolute z-50 w-48 bg-white border border-gray-200 shadow-xl p-2 rounded-lg mt-1 left-0 max-h-48 overflow-y-auto">
-                                                            {['General', 'Youth', 'Student', 'PWD', 'Senior Citizen', 'LGBTQ+', 'Indigenous People', 'Solo Parent'].map(option => (
-                                                                <label key={option} className="flex items-center gap-2 p-1.5 hover:bg-gray-50 cursor-pointer text-sm rounded">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={(row.sector || 'General').split(',').map(s => s.trim()).includes(option)}
-                                                                        onChange={e => {
-                                                                            const currentSectors = row.sector ? row.sector.split(',').map(s => s.trim()).filter(Boolean) : [];
-                                                                            let newSectors = [...currentSectors];
-                                                                            if (e.target.checked) {
-                                                                                if (option === 'General') newSectors = ['General'];
-                                                                                else {
-                                                                                    newSectors = newSectors.filter(s => s !== 'General');
-                                                                                    if (!newSectors.includes(option)) newSectors.push(option);
-                                                                                }
-                                                                            } else {
-                                                                                newSectors = newSectors.filter(s => s !== option);
-                                                                                if (newSectors.length === 0) newSectors = ['General'];
+                        <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                            {rows.map((row, index) => (
+                                <div key={row.id} className="p-4 bg-white border border-gray-200 rounded-xl relative hover:border-teal-200 transition-colors shadow-sm">
+                                    {/* Header with Row Indicator & Actions */}
+                                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+                                        <span className="text-sm font-bold text-teal-800 uppercase tracking-wider bg-teal-50 px-2.5 py-1 rounded-full">
+                                            Member #{index + 1}
+                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSearchVoter(row.id)}
+                                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors"
+                                                title="Search Voter Record"
+                                            >
+                                                <Search className="w-3.5 h-3.5" />
+                                                Search Voter
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveRow(row.id)}
+                                                disabled={rows.length === 1}
+                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-45"
+                                                title="Remove row"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Fields Grid */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                        {/* Last Name */}
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">Last Name *</label>
+                                            <input
+                                                type="text"
+                                                value={row.lastname}
+                                                onChange={e => handleChange(row.id, 'lastname', e.target.value)}
+                                                required
+                                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                                placeholder="Last Name"
+                                            />
+                                        </div>
+                                        {/* First Name */}
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">First Name *</label>
+                                            <input
+                                                type="text"
+                                                value={row.firstname}
+                                                onChange={e => handleChange(row.id, 'firstname', e.target.value)}
+                                                required
+                                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                                placeholder="First Name"
+                                            />
+                                        </div>
+                                        {/* Middle Name */}
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">Middle Name</label>
+                                            <input
+                                                type="text"
+                                                value={row.middlename}
+                                                onChange={e => handleChange(row.id, 'middlename', e.target.value)}
+                                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                                placeholder="Middle Name"
+                                            />
+                                        </div>
+                                        {/* Contact Number */}
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">Contact No.</label>
+                                            <input
+                                                type="tel"
+                                                value={row.contact_number}
+                                                onChange={e => handleChange(row.id, 'contact_number', e.target.value)}
+                                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                                placeholder="09XX-XXX-XXXX"
+                                            />
+                                        </div>
+
+                                        {/* Birthday */}
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">Birthday *</label>
+                                            <input
+                                                type="date"
+                                                value={row.birthdate}
+                                                onChange={e => handleChange(row.id, 'birthdate', e.target.value)}
+                                                required
+                                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 font-sans"
+                                            />
+                                        </div>
+                                        {/* Membership Date */}
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">Membership Date *</label>
+                                            <input
+                                                type="date"
+                                                value={row.membership_date || ''}
+                                                onChange={e => handleChange(row.id, 'membership_date', e.target.value)}
+                                                required
+                                                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 font-sans"
+                                            />
+                                        </div>
+                                        {/* Sector */}
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1">Sector</label>
+                                            <div className="flex flex-col gap-1 relative">
+                                                <details className="group relative">
+                                                    <summary className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg cursor-pointer list-none flex justify-between items-center bg-white">
+                                                        <span className="truncate">{row.sector || 'General'}</span>
+                                                        <span className="text-gray-400 text-xs ml-1">▼</span>
+                                                    </summary>
+                                                    <div className="absolute z-[60] w-full min-w-[11rem] bg-white border border-gray-200 shadow-xl p-2 rounded-lg mt-1 left-0 max-h-48 overflow-y-auto">
+                                                        {['General', 'Youth', 'Student', 'PWD', 'Senior Citizen', 'LGBTQ+', 'Indigenous People', 'Solo Parent'].map(option => (
+                                                            <label key={option} className="flex items-center gap-2 p-1.5 hover:bg-gray-50 cursor-pointer text-sm rounded">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={(row.sector || 'General').split(',').map(s => s.trim()).includes(option)}
+                                                                    onChange={e => {
+                                                                        const currentSectors = row.sector ? row.sector.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                                                        let newSectors = [...currentSectors];
+                                                                        if (e.target.checked) {
+                                                                            if (option === 'General') newSectors = ['General'];
+                                                                            else {
+                                                                                newSectors = newSectors.filter(s => s !== 'General');
+                                                                                if (!newSectors.includes(option)) newSectors.push(option);
                                                                             }
-                                                                            handleChange(row.id, 'sector', newSectors.join(', '));
-                                                                        }}
-                                                                        className="w-3.5 h-3.5 text-teal-600 rounded border-gray-300"
-                                                                    />
-                                                                    <span className="text-gray-700">{option}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                    </details>
-                                                    {(row.sector || '').includes('Student') && (
-                                                        <select
-                                                            value={row.year_level || ''}
-                                                            onChange={e => handleChange(row.id, 'year_level', e.target.value)}
-                                                            required
-                                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                                                        >
-                                                            <option value="">Select Level</option>
-                                                            <option value="Elementary">Elementary</option>
-                                                            <option value="High School">High School</option>
-                                                            <option value="College">College</option>
-                                                        </select>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="p-2 align-top">
-                                                <div className="flex flex-col gap-1 mt-1">
-                                                    <label className="flex items-center gap-1.5 cursor-pointer text-sm">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={!!row.phic_member}
-                                                            onChange={e => handleChange(row.id, 'phic_member', e.target.checked ? 'true' : 'false')}
-                                                            className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
-                                                        />
-                                                        <span className="text-xs font-medium text-gray-700 whitespace-nowrap">Member</span>
-                                                    </label>
-                                                    {row.phic_member && (
-                                                        <input
-                                                            type="text"
-                                                            value={row.phic_no || ''}
-                                                            onChange={e => handleChange(row.id, 'phic_no', e.target.value)}
-                                                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-teal-500"
-                                                            placeholder="PHIC No."
-                                                        />
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="p-2 text-center whitespace-nowrap align-top">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleSearchVoter(row.id)}
-                                                    className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors mr-1"
-                                                    title="Search Voter Record"
-                                                >
-                                                    <Search className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveRow(row.id)}
-                                                    disabled={rows.length === 1}
-                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:hover:text-gray-400 disabled:hover:bg-transparent"
-                                                    title="Remove row"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                                        } else {
+                                                                            newSectors = newSectors.filter(s => s !== option);
+                                                                            if (newSectors.length === 0) newSectors = ['General'];
+                                                                        }
+                                                                        handleChange(row.id, 'sector', newSectors.join(', '));
+                                                                    }}
+                                                                    className="w-3.5 h-3.5 text-teal-600 rounded border-gray-300"
+                                                                />
+                                                                <span className="text-gray-700">{option}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </details>
+                                                {(row.sector || '').includes('Student') && (
+                                                    <select
+                                                        value={row.year_level || ''}
+                                                        onChange={e => handleChange(row.id, 'year_level', e.target.value)}
+                                                        required
+                                                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                                    >
+                                                        <option value="">Select Level</option>
+                                                        <option value="Elementary">Elementary</option>
+                                                        <option value="High School">High School</option>
+                                                        <option value="College">College</option>
+                                                    </select>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* PHIC */}
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 mb-1 font-sans">PhilHealth (PHIC)</label>
+                                            <div className="flex flex-col gap-1">
+                                                <label className="flex items-center gap-1.5 cursor-pointer text-sm h-[38px]">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!row.phic_member}
+                                                        onChange={e => handleChange(row.id, 'phic_member', e.target.checked ? 'true' : 'false')}
+                                                        className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                                    />
+                                                    <span className="text-xs font-medium text-gray-700 whitespace-nowrap">PHIC Member</span>
+                                                </label>
+                                                {row.phic_member && (
+                                                    <input
+                                                        type="text"
+                                                        value={row.phic_no || ''}
+                                                        onChange={e => handleChange(row.id, 'phic_no', e.target.value)}
+                                                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                                        placeholder="PHIC No."
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         <div className="mt-4 flex justify-start">

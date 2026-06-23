@@ -134,12 +134,17 @@ export const supabaseHelpers = {
   async getFamilyMembersPaginated(options: { 
     page: number; 
     limit: number; 
-    searchTerm?: string; 
+    searchTerm?: string;
+    searchLastname?: string;
+    searchFirstname?: string;
+    searchMiddlename?: string;
     householdId?: string;
     filterSector?: string;
     filterStatus?: string;
+    filterLgu?: string;
+    filterBarangay?: string;
   }) {
-    const { page, limit, searchTerm, householdId, filterSector, filterStatus } = options;
+    const { page, limit, searchTerm, searchLastname, searchFirstname, searchMiddlename, householdId, filterSector, filterStatus, filterLgu, filterBarangay } = options;
     const from = (page - 1) * limit;
     const to = Math.min(from + limit - 1, 499);
 
@@ -155,6 +160,14 @@ export const supabaseHelpers = {
       query = query.eq('household_id', householdId);
     }
 
+    if (filterLgu) {
+      query = query.eq('lgu', filterLgu);
+    }
+
+    if (filterBarangay) {
+      query = query.eq('barangay', filterBarangay);
+    }
+
     if (filterStatus) {
       if (filterStatus === 'member') query = query.eq('is_cooperative_member', true);
       else if (filterStatus === 'non-member') query = query.eq('is_cooperative_member', false);
@@ -166,7 +179,19 @@ export const supabaseHelpers = {
       query = query.ilike('sector', `%${filterSector}%`);
     }
 
-    if (searchTerm) {
+    // Individual name field searches (applied as AND filters)
+    if (searchLastname) {
+      query = query.ilike('lastname', `%${searchLastname}%`);
+    }
+    if (searchFirstname) {
+      query = query.ilike('firstname', `%${searchFirstname}%`);
+    }
+    if (searchMiddlename) {
+      query = query.ilike('middlename', `%${searchMiddlename}%`);
+    }
+
+    // Generic search across multiple fields (used when no individual name filters are set)
+    if (searchTerm && !searchLastname && !searchFirstname && !searchMiddlename) {
       query = query.or(`firstname.ilike.%${searchTerm}%,lastname.ilike.%${searchTerm}%,contact_number.ilike.%${searchTerm}%`);
     }
 
@@ -177,6 +202,7 @@ export const supabaseHelpers = {
 
     return { data: data || [], count: count !== null ? Math.min(count, 500) : 0 };
   },
+
 
   async createFamilyMember(member: Omit<Database['public']['Tables']['family_members']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
     const { data, error } = await supabase.from('family_members').insert(member).select().single();

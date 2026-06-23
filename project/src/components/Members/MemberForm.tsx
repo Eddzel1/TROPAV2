@@ -1,7 +1,50 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FamilyMember, Household, Location, Voter, Purok } from '../../types';
-import { X, Save, Search, UserCheck, Info } from 'lucide-react';
+import { X, Save, Search, UserCheck, Info, UserPlus, Trash2, Plus } from 'lucide-react';
 import { supabaseHelpers } from '../../lib/supabase';
+
+// Full bulk-style household member row (matches BulkAddMemberForm)
+export interface HouseholdMemberRow {
+    id: string;
+    lastname: string;
+    firstname: string;
+    middlename: string;
+    contact_number: string;
+    birthdate: string;
+    membership_date: string;
+    sector: FamilyMember['sector'];
+    year_level?: string;
+    is_voter: boolean;
+    is_cooperative_member: boolean;
+    phic_member: boolean;
+    phic_no: string;
+}
+
+const generateTempId = () => Math.random().toString(36).substr(2, 9);
+
+const createEmptyMemberRow = (defaultMembershipDate?: string): HouseholdMemberRow => ({
+    id: generateTempId(),
+    lastname: '',
+    firstname: '',
+    middlename: '',
+    contact_number: '',
+    birthdate: '',
+    membership_date: defaultMembershipDate || new Date().toISOString().split('T')[0],
+    sector: 'General',
+    year_level: '',
+    is_voter: false,
+    is_cooperative_member: true,
+    phic_member: false,
+    phic_no: '',
+});
+
+const formatContactNumber = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length === 0) return '';
+    if (cleaned.length <= 4) return cleaned;
+    if (cleaned.length <= 7) return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
+    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7, 11)}`;
+};
 
 interface MemberFormProps {
     member?: FamilyMember;
@@ -9,7 +52,7 @@ interface MemberFormProps {
     locations: Location[];
     isOpen: boolean;
     onClose: () => void;
-    onSave: (memberData: Partial<FamilyMember>) => void;
+    onSave: (memberData: Partial<FamilyMember>, extraMembers?: HouseholdMemberRow[]) => void;
     preSelectedHousehold?: Household;
 }
 
@@ -63,6 +106,9 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     const voterMiddleNameRef = useRef(voterMiddleName);
     const voterBarangayRef = useRef(voterBarangay);
     const [isAddAnother, setIsAddAnother] = useState(false);
+
+    // ── Inline Household Members (shown when is_household_leader = true in add-mode) ──
+    const [householdMembers, setHouseholdMembers] = useState<HouseholdMemberRow[]>([]);
 
     // ── Household Search State ──
     const [householdSearch, setHouseholdSearch] = useState('');
@@ -124,6 +170,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         setVoterLgu('VALENCIA CITY');
         setVoterBarangay('');
         setPossibleMatches([]);
+        setHouseholdMembers([]);
     }, [member, isOpen]);
 
     useEffect(() => {
@@ -226,6 +273,15 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         return [...result].sort((a, b) => a.household_name.localeCompare(b.household_name));
     }, [households, formData.lgu, formData.barangay, householdSearch]);
 
+    // ── Bulk voter search state (for inline member rows) ──
+    const [bulkSearchModalOpen, setBulkSearchModalOpen] = useState(false);
+    const [bulkActiveRowId, setBulkActiveRowId] = useState<string | null>(null);
+    const [bulkVoterLastName, setBulkVoterLastName] = useState('');
+    const [bulkVoterFirstName, setBulkVoterFirstName] = useState('');
+    const [bulkVoterMiddleName, setBulkVoterMiddleName] = useState('');
+    const [bulkVoterResults, setBulkVoterResults] = useState<Voter[]>([]);
+    const [isBulkSearching, setIsBulkSearching] = useState(false);
+
     // ── All hooks must be above this line ──
     if (!isOpen) return null;
 
@@ -234,7 +290,11 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         e.preventDefault();
         try {
             const dataToSave = { ...formData, is_cooperative_member: true };
-            await onSave(dataToSave);
+            // Pass extra household member rows when leader is being added
+            const extras = (isAddMode && formData.is_household_leader && householdMembers.length > 0)
+                ? householdMembers
+                : undefined;
+            await onSave(dataToSave, extras);
             if (isAddAnother) {
                 // Reset form but retain household and location info
                 setFormData({
@@ -254,10 +314,77 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 setSearchSkipped(false);
                 setSearchError('');
                 setPossibleMatches([]);
+                setHouseholdMembers([]);
             }
         } catch (error) {
             console.error('Failed to save:', error);
         }
+    };
+
+    // ── Inline household member helpers (bulk-form style) ──
+    const addHouseholdMemberRow = () => {
+        const defaultDate = formData.membership_date
+            ? (formData.membership_date instanceof Date
+                ? formData.membership_date.toISOString().split('T')[0]
+                : String(formData.membership_date).split('T')[0])
+            : new Date().toISOString().split('T')[0];
+        setHouseholdMembers(prev => [...prev, createEmptyMemberRow(defaultDate)]);
+    };
+
+    const updateHouseholdMemberRow = (id: string, field: keyof Omit<HouseholdMemberRow, 'id'>, value: string | boolean) => {
+        setHouseholdMembers(prev => prev.map(row => {
+            if (row.id !== id) return row;
+            if (field === 'phic_member') return { ...row, phic_member: value as boolean, phic_no: !value ? '' : row.phic_no };
+            if (field === 'contact_number') {
+                const cleaned = (value as string).replace(/\D/g, '');
+                if (cleaned.length > 11) return row;
+                return { ...row, contact_number: formatContactNumber(value as string) };
+            }
+            return { ...row, [field]: value };
+        }));
+    };
+
+    const removeHouseholdMemberRow = (id: string) => {
+        setHouseholdMembers(prev => prev.filter(row => row.id !== id));
+    };
+
+    const handleBulkSearchVoter = (rowId: string) => {
+        const row = householdMembers.find(r => r.id === rowId);
+        setBulkActiveRowId(rowId);
+        setBulkVoterLastName(row?.lastname || '');
+        setBulkVoterFirstName(row?.firstname || '');
+        setBulkVoterMiddleName(row?.middlename || '');
+        setBulkVoterResults([]);
+        setBulkSearchModalOpen(true);
+    };
+
+    const runBulkSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (bulkVoterLastName.trim().length < 2 && bulkVoterFirstName.trim().length < 2 && bulkVoterMiddleName.trim().length < 2) return;
+        setIsBulkSearching(true);
+        try {
+            const results = await supabaseHelpers.searchVoters(bulkVoterLastName.trim(), bulkVoterFirstName.trim(), bulkVoterMiddleName.trim(), undefined, undefined);
+            setBulkVoterResults(results as Voter[]);
+        } catch (err) {
+            console.error('Bulk voter search error:', err);
+        } finally {
+            setIsBulkSearching(false);
+        }
+    };
+
+    const handleBulkSelectVoter = (voter: Voter) => {
+        if (!bulkActiveRowId) return;
+        setHouseholdMembers(prev => prev.map(row =>
+            row.id !== bulkActiveRowId ? row : {
+                ...row,
+                firstname: voter.firstname || row.firstname,
+                lastname: voter.lastname || row.lastname,
+                middlename: voter.middlename || row.middlename,
+                is_voter: true,
+            }
+        ));
+        setBulkSearchModalOpen(false);
+        setBulkActiveRowId(null);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -406,7 +533,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     const showVoterSearch = isAddMode && !selectedVoter && !searchSkipped;
     const showForm = isAddMode ? (selectedVoter !== null || searchSkipped) : true;
 
-    return (
+    return (<>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 sm:p-6 overflow-y-auto">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl my-auto">
 
@@ -966,6 +1093,155 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                             </div>
                         </div>
 
+                        {/* ── INLINE HOUSEHOLD MEMBERS — BULK STYLE (leader add-mode only) ── */}
+                        {isAddMode && formData.is_household_leader && (
+                            <div className="md:col-span-2 mt-4">
+                                <div className="border border-teal-200 rounded-xl bg-teal-50/40 p-4">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-teal-800 flex items-center gap-2">
+                                                <UserPlus className="w-4 h-4" />
+                                                Household Members
+                                            </h3>
+                                            <p className="text-xs text-teal-600 mt-0.5">Add other members of this household. They will share the same location and household.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                                        {householdMembers.map((row, index) => (
+                                            <div key={row.id} className="p-4 bg-white border border-gray-200 rounded-xl relative hover:border-teal-200 transition-colors shadow-sm">
+                                                {/* Header with Row Indicator & Actions */}
+                                                <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+                                                    <span className="text-xs font-bold text-teal-800 uppercase tracking-wider bg-teal-50 px-2.5 py-1 rounded-full">
+                                                        Member #{index + 1}
+                                                    </span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleBulkSearchVoter(row.id)}
+                                                            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors"
+                                                            title="Search Voter Record"
+                                                        >
+                                                            <Search className="w-3.5 h-3.5" />
+                                                            Search Voter
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeHouseholdMemberRow(row.id)}
+                                                            disabled={householdMembers.length === 1}
+                                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
+                                                            title="Remove member"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Fields Grid */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                                    {/* Last Name */}
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1">Last Name *</label>
+                                                        <input type="text" value={row.lastname} onChange={e => updateHouseholdMemberRow(row.id, 'lastname', e.target.value)} required className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" placeholder="Last Name" />
+                                                    </div>
+                                                    {/* First Name */}
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1">First Name *</label>
+                                                        <input type="text" value={row.firstname} onChange={e => updateHouseholdMemberRow(row.id, 'firstname', e.target.value)} required className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" placeholder="First Name" />
+                                                    </div>
+                                                    {/* Middle Name */}
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1">Middle Name</label>
+                                                        <input type="text" value={row.middlename} onChange={e => updateHouseholdMemberRow(row.id, 'middlename', e.target.value)} className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" placeholder="Middle Name" />
+                                                    </div>
+                                                    {/* Contact Number */}
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1">Contact No.</label>
+                                                        <input type="tel" value={row.contact_number} onChange={e => updateHouseholdMemberRow(row.id, 'contact_number', e.target.value)} className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" placeholder="09XX-XXX-XXXX" />
+                                                    </div>
+
+                                                    {/* Birthday */}
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1">Birthday</label>
+                                                        <input type="date" value={row.birthdate} onChange={e => updateHouseholdMemberRow(row.id, 'birthdate', e.target.value)} className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 font-sans" />
+                                                    </div>
+                                                    {/* Membership Date */}
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1">Membership Date *</label>
+                                                        <input type="date" value={row.membership_date} onChange={e => updateHouseholdMemberRow(row.id, 'membership_date', e.target.value)} required className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 font-sans" />
+                                                    </div>
+                                                    {/* Sector */}
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1">Sector</label>
+                                                        <div className="flex flex-col gap-1 relative">
+                                                            <details className="group relative">
+                                                                <summary className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg cursor-pointer list-none flex justify-between items-center bg-white">
+                                                                    <span className="truncate">{row.sector || 'General'}</span>
+                                                                    <span className="text-gray-400 text-xs ml-1">▼</span>
+                                                                </summary>
+                                                                <div className="absolute z-[60] w-full min-w-[11rem] bg-white border border-gray-200 shadow-xl p-2 rounded-lg mt-1 left-0 max-h-48 overflow-y-auto">
+                                                                    {['General', 'Youth', 'Student', 'PWD', 'Senior Citizen', 'LGBTQ+', 'Indigenous People', 'Solo Parent'].map(option => (
+                                                                        <label key={option} className="flex items-center gap-2 p-1.5 hover:bg-gray-50 cursor-pointer text-sm rounded">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={(row.sector || 'General').split(',').map(s => s.trim()).includes(option)}
+                                                                                onChange={e => {
+                                                                                    const current = row.sector ? row.sector.split(',').map(s => s.trim()).filter(Boolean) : [];
+                                                                                    let next = [...current];
+                                                                                    if (e.target.checked) {
+                                                                                        if (option === 'General') next = ['General'];
+                                                                                        else { next = next.filter(s => s !== 'General'); if (!next.includes(option)) next.push(option); }
+                                                                                    } else {
+                                                                                        next = next.filter(s => s !== option);
+                                                                                        if (next.length === 0) next = ['General'];
+                                                                                    }
+                                                                                    updateHouseholdMemberRow(row.id, 'sector', next.join(', '));
+                                                                                }}
+                                                                                className="w-3.5 h-3.5 text-teal-600 rounded border-gray-300"
+                                                                            />
+                                                                            <span className="text-gray-700">{option}</span>
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </details>
+                                                            {(row.sector || '').includes('Student') && (
+                                                                <select value={row.year_level || ''} onChange={e => updateHouseholdMemberRow(row.id, 'year_level', e.target.value)} required className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500">
+                                                                    <option value="">Level</option>
+                                                                    <option value="Elementary">Elementary</option>
+                                                                    <option value="High School">High School</option>
+                                                                    <option value="College">College</option>
+                                                                </select>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {/* PHIC */}
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1 font-sans">PhilHealth (PHIC)</label>
+                                                        <div className="flex flex-col gap-1">
+                                                            <label className="flex items-center gap-1.5 cursor-pointer text-sm h-[38px]">
+                                                                <input type="checkbox" checked={!!row.phic_member} onChange={e => updateHouseholdMemberRow(row.id, 'phic_member', e.target.checked)} className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded" />
+                                                                <span className="text-xs font-medium text-gray-700 whitespace-nowrap">PHIC Member</span>
+                                                            </label>
+                                                            {row.phic_member && (
+                                                                <input type="text" value={row.phic_no || ''} onChange={e => updateHouseholdMemberRow(row.id, 'phic_no', e.target.value)} className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500" placeholder="PHIC No." />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="mt-3">
+                                        <button type="button" onClick={addHouseholdMemberRow} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-teal-600 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors">
+                                            <Plus className="w-4 h-4" />
+                                            Add Row
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-6">
                             <button
                                 type="button"
@@ -997,5 +1273,57 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 )}
             </div>
         </div>
-    );
+
+        {/* ── BULK VOTER SEARCH MODAL (for inline household member rows) ── */}
+        {bulkSearchModalOpen && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[80vh]">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                        <h3 className="text-lg font-bold text-gray-900">Search Voter Record</h3>
+                        <button onClick={() => setBulkSearchModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="p-4 border-b border-gray-100 bg-gray-50">
+                        <form onSubmit={runBulkSearch} className="flex flex-col gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <input type="text" value={bulkVoterLastName} onChange={e => setBulkVoterLastName(e.target.value)} placeholder="Last name..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm" autoFocus />
+                                <input type="text" value={bulkVoterFirstName} onChange={e => setBulkVoterFirstName(e.target.value)} placeholder="First name..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm" />
+                                <input type="text" value={bulkVoterMiddleName} onChange={e => setBulkVoterMiddleName(e.target.value)} placeholder="Middle name..." className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm" />
+                            </div>
+                            <div className="flex justify-end">
+                                <button type="submit" disabled={isBulkSearching || (bulkVoterLastName.length < 2 && bulkVoterFirstName.length < 2 && bulkVoterMiddleName.length < 2)} className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2 text-sm font-medium">
+                                    <Search className="w-4 h-4" />
+                                    {isBulkSearching ? 'Searching...' : 'Search'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div className="p-4 overflow-y-auto flex-1">
+                        {bulkVoterResults.length === 0 && !isBulkSearching && (bulkVoterLastName.length >= 2 || bulkVoterFirstName.length >= 2) && (
+                            <div className="text-center text-gray-500 py-8">No records found. Try adjusting your search.</div>
+                        )}
+                        {bulkVoterResults.length > 0 && (
+                            <ul className="divide-y divide-gray-100">
+                                {bulkVoterResults.map(voter => (
+                                    <li key={voter.id}>
+                                        <button
+                                            onClick={() => handleBulkSelectVoter(voter)}
+                                            className="w-full text-left p-3 hover:bg-teal-50 rounded-lg transition-colors flex items-center justify-between group"
+                                        >
+                                            <div>
+                                                <div className="font-semibold text-gray-900 group-hover:text-teal-700">{voter.lastname}, {voter.firstname} {voter.middlename}</div>
+                                                <div className="text-sm text-gray-500 mt-1">{voter.lgu}, {voter.brgy}{voter.precinct ? ` • Prec: ${voter.precinct}` : ''}</div>
+                                            </div>
+                                            <UserCheck className="w-5 h-5 text-gray-400 group-hover:text-teal-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+    </>);
 }
