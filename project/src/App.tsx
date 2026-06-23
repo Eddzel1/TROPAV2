@@ -9,7 +9,8 @@ import { DuesCollection } from './components/DuesCollection/DuesCollection';
 import { Reports } from './components/Reports/Reports';
 import { Settings } from './components/Settings/Settings';
 import { TropaFinder } from './components/TropaFinder/TropaFinder';
-import { useHouseholds, useFamilyMembers, useDuesPayments, useUsers, useLocations, useAuthProfile, useContributionRates } from './hooks/useSupabase';
+import { useHouseholds, useUsers, useLocations, useAuthProfile, useContributionRates } from './hooks/useSupabase';
+import { supabaseHelpers } from './lib/supabase';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -17,9 +18,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { households, updateHousehold, deleteHousehold, refetch: refetchHouseholds } = useHouseholds();
-  const { members, createMember, updateMember, deleteMember, refetch: refetchMembers } = useFamilyMembers();
-  const { payments, createPayment, updatePayment, deletePayment } = useDuesPayments();
+  const { households, updateHousehold, deleteHousehold } = useHouseholds();
   const { users, createUser, updateUser, deleteUser } = useUsers();
   const { locations, createLocation, updateLocation, deleteLocation } = useLocations();
   const { profile: currentUser, loading: profileLoading } = useAuthProfile();
@@ -101,8 +100,6 @@ function App() {
         return (
           <Dashboard
             households={households}
-            members={members}
-            payments={payments}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );
@@ -110,53 +107,39 @@ function App() {
         return (
           <Households
             households={households}
-            members={members}
             locations={locations}
             onCreateMember={async (member) => {
-              const newMember = await createMember(member as any);
-              if (member.is_household_leader) {
-                refetchHouseholds();
-              }
-              return newMember as any;
+              return await supabaseHelpers.createFamilyMember(member as any) as any;
             }}
             onUpdateHousehold={async (id, h) => {
-              const result = await updateHousehold(id, { ...h, created_date: h.created_date ? h.created_date.toISOString() : undefined } as any);
-              refetchMembers();
-              return result as any;
+              return await updateHousehold(id, { ...h, created_date: h.created_date ? h.created_date.toISOString() : undefined } as any) as any;
             }}
             onDeleteHousehold={deleteHousehold}
-            onDeleteMember={deleteMember}
+            onDeleteMember={async (id) => {
+              await supabaseHelpers.deleteFamilyMember(id);
+            }}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );
       case 'members':
         return (
           <Members
-            members={members}
             households={households}
             locations={locations}
-            onCreateMember={async (member) => {
-              const newMember = await createMember(member as any);
-              if (member.is_household_leader) {
-                refetchHouseholds();
-              }
-              return newMember as any;
-            }}
-            onUpdateMember={async (id, m) => updateMember(id, { ...m, membership_date: m.membership_date ? m.membership_date.toISOString() : undefined, birth_date: m.birth_date ? m.birth_date.toISOString() : undefined } as any) as any}
-            onDeleteMember={deleteMember}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );
       case 'dues':
         return (
           <DuesCollection
-            payments={payments}
-            members={members}
-            households={households}
             contributionRates={contributionRates}
-            onCreatePayment={async (p) => createPayment({ ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : new Date().toISOString() } as any) as any}
-            onUpdatePayment={async (id, p) => updatePayment(id, { ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : undefined } as any) as any}
-            onDeletePayment={deletePayment}
+            onCreatePayment={async (p) =>
+              supabaseHelpers.createDuesPayment({ ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : new Date().toISOString() } as any) as any
+            }
+            onUpdatePayment={async (id, p) =>
+              supabaseHelpers.updateDuesPayment(id, { ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : undefined } as any) as any
+            }
+            onDeletePayment={(id) => supabaseHelpers.deleteDuesPayment(id)}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );
@@ -164,8 +147,8 @@ function App() {
         return (
           <Reports
             households={households}
-            members={members}
-            payments={payments}
+            members={[]}
+            payments={[]}
             locations={locations}
             contributionRates={contributionRates}
             onMenuClick={() => setSidebarOpen(true)}
@@ -197,8 +180,6 @@ function App() {
         return (
           <Dashboard
             households={households}
-            members={members}
-            payments={payments}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );

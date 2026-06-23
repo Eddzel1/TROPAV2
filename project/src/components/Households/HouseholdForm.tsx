@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Household, Location } from '../../types';
+import { Household, Location, Purok } from '../../types';
 import { X, Save } from 'lucide-react';
+import { supabaseHelpers } from '../../lib/supabase';
 
 interface HouseholdFormProps {
     household: Household;
@@ -16,8 +17,11 @@ export function HouseholdForm({ household, locations, isOpen, onClose, onSave }:
         lgu: '',
         barangay: '',
         purok: '',
+        purok_id: '',
         status: 'active'
     });
+    const [puroks, setPuroks] = useState<Purok[]>([]);
+    const [loadingPuroks, setLoadingPuroks] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -27,16 +31,53 @@ export function HouseholdForm({ household, locations, isOpen, onClose, onSave }:
                 lgu: household.lgu,
                 barangay: household.barangay,
                 purok: household.purok,
+                purok_id: household.purok_id || '',
                 status: household.status
             });
         }
     }, [household, isOpen]);
 
+    useEffect(() => {
+        if (formData.lgu && formData.barangay) {
+            const fetchPuroksForLocation = async () => {
+                setLoadingPuroks(true);
+                try {
+                    const loc = locations.find(
+                        l => l.lgu.toUpperCase() === formData.lgu?.toUpperCase() &&
+                             l.barangay.toUpperCase() === formData.barangay?.toUpperCase()
+                    );
+                    if (loc) {
+                        const data = await supabaseHelpers.getPuroks(loc.id);
+                        setPuroks(data as any);
+                    } else {
+                        setPuroks([]);
+                    }
+                } catch (err) {
+                    console.error('Error fetching puroks in form:', err);
+                } finally {
+                    setLoadingPuroks(false);
+                }
+            };
+            fetchPuroksForLocation();
+        } else {
+            setPuroks([]);
+        }
+    }, [formData.lgu, formData.barangay, locations]);
+
     if (!isOpen) return null;
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'lgu') {
+            setFormData(prev => ({ ...prev, lgu: value, barangay: '', purok: '', purok_id: '' }));
+        } else if (name === 'barangay') {
+            setFormData(prev => ({ ...prev, barangay: value, purok: '', purok_id: '' }));
+        } else if (name === 'purok_id') {
+            const selectedPurok = puroks.find(p => p.id === value);
+            setFormData(prev => ({ ...prev, purok_id: value, purok: selectedPurok ? selectedPurok.name : '' }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -116,14 +157,21 @@ export function HouseholdForm({ household, locations, isOpen, onClose, onSave }:
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Purok *</label>
-                        <input
-                            type="text"
-                            name="purok"
+                        <select
+                            name="purok_id"
                             required
-                            value={formData.purok || ''}
+                            value={formData.purok_id || ''}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 max-w-full"
-                        />
+                            disabled={loadingPuroks || !formData.barangay}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 max-w-full disabled:bg-gray-50 disabled:text-gray-400"
+                        >
+                            <option value="">
+                                {loadingPuroks ? 'Loading puroks...' : !formData.barangay ? 'Select Barangay First' : 'Select Purok'}
+                            </option>
+                            {puroks.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>

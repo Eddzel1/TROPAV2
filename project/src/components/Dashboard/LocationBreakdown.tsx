@@ -1,15 +1,14 @@
 
 import { MapPin } from 'lucide-react';
-import { Household, FamilyMember } from '../../types';
+import { Household } from '../../types';
 
 interface LocationBreakdownProps {
   households: Household[];
-  members: FamilyMember[];
 }
 
-export function LocationBreakdown({ households, members }: LocationBreakdownProps) {
+export function LocationBreakdown({ households }: LocationBreakdownProps) {
   const activeHouseholds = households.filter(h =>
-    h.status === 'active' && members.some(m => m.household_id === h.id)
+    h.status === 'active' && h.total_members > 0
   );
 
   const toTitleCase = (str: string) => {

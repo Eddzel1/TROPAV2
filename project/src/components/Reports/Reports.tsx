@@ -7,6 +7,7 @@ import { SectorReport } from './SectorReport';
 import { ExportReport } from './ExportReport';
 import { Household, FamilyMember, DuesPayment, Location, ContributionRate } from '../../types';
 import { Users, CreditCard, MapPin, PieChart, Download, Calendar, TrendingUp } from 'lucide-react';
+import { useFamilyMembers, useDuesPayments, useHouseholds } from '../../hooks/useSupabase';
 
 interface ReportsProps {
   households: Household[];
@@ -17,7 +18,16 @@ interface ReportsProps {
   onMenuClick: () => void;
 }
 
-export function Reports({ households, members, payments, locations, contributionRates, onMenuClick }: ReportsProps) {
+export function Reports({ locations, contributionRates, onMenuClick, households: householdsProp, members: membersProp, payments: paymentsProp }: ReportsProps) {
+  // Fetch data lazily – only when Reports is mounted (user navigated to this page)
+  const { members: fetchedMembers } = useFamilyMembers();
+  const { payments: fetchedPayments } = useDuesPayments();
+  const { households: fetchedHouseholds } = useHouseholds();
+
+  // Use fetched data; fall back to passed props if somehow both are available
+  const members = fetchedMembers.length > 0 ? fetchedMembers : (membersProp || []);
+  const payments = fetchedPayments.length > 0 ? fetchedPayments : (paymentsProp || []);
+  const households = fetchedHouseholds.length > 0 ? fetchedHouseholds : (householdsProp || []);
   const [activeTab, setActiveTab] = useState('membership');
   const [dateRange, setDateRange] = useState({ startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0] });
 

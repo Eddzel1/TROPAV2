@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FamilyMember, Household, Location, Voter } from '../../types';
+import { FamilyMember, Household, Location, Voter, Purok } from '../../types';
 import { X, Save, Search, UserCheck, Info } from 'lucide-react';
 import { supabaseHelpers } from '../../lib/supabase';
 
@@ -23,16 +23,20 @@ const emptyForm: Partial<FamilyMember> & { household_name?: string } = {
     lgu: '',
     barangay: '',
     purok: '',
+    purok_id: '',
     sector: 'General',
     is_voter: false,
     is_household_leader: false,
     is_cooperative_member: true,
     phic_member: false,
     phic_no: '',
+    membership_date: undefined,
 };
 
 export function MemberForm({ member, households, locations, isOpen, onClose, onSave, preSelectedHousehold }: MemberFormProps) {
     const [formData, setFormData] = useState<Partial<FamilyMember> & { household_name?: string }>(emptyForm);
+    const [puroks, setPuroks] = useState<Purok[]>([]);
+    const [loadingPuroks, setLoadingPuroks] = useState(false);
 
     // ── Voter search state ──
     const [voterLastName, setVoterLastName] = useState('');
@@ -98,11 +102,16 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 lgu: preSelectedHousehold.lgu,
                 barangay: preSelectedHousehold.barangay,
                 purok: preSelectedHousehold.purok,
-                is_household_leader: false
+                purok_id: preSelectedHousehold.purok_id || '',
+                is_household_leader: false,
+                membership_date: new Date()
             });
             setHouseholdSearch(preSelectedHousehold.household_name);
         } else {
-            setFormData(emptyForm);
+            setFormData({
+                ...emptyForm,
+                membership_date: new Date()
+            });
             setHouseholdSearch('');
         }
         setVoterLastName('');
@@ -116,6 +125,33 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         setVoterBarangay('');
         setPossibleMatches([]);
     }, [member, isOpen]);
+
+    useEffect(() => {
+        if (formData.lgu && formData.barangay) {
+            const fetchPuroksForLocation = async () => {
+                setLoadingPuroks(true);
+                try {
+                    const loc = locations.find(
+                        l => l.lgu.toUpperCase() === formData.lgu?.toUpperCase() &&
+                             l.barangay.toUpperCase() === formData.barangay?.toUpperCase()
+                    );
+                    if (loc) {
+                        const data = await supabaseHelpers.getPuroks(loc.id);
+                        setPuroks(data as any);
+                    } else {
+                        setPuroks([]);
+                    }
+                } catch (err) {
+                    console.error('Error fetching puroks in form:', err);
+                } finally {
+                    setLoadingPuroks(false);
+                }
+            };
+            fetchPuroksForLocation();
+        } else {
+            setPuroks([]);
+        }
+    }, [formData.lgu, formData.barangay, locations]);
 
     // ── Search runner — uses refs so it's always fresh ──
     const runSearch = (lname: string, fname: string, mname: string, lgu: string, barangay: string) => {
@@ -248,7 +284,16 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 }
                 finalValue = cleaned;
             }
-            setFormData((prev) => ({ ...prev, [name]: finalValue }));
+            if (name === 'lgu') {
+                setFormData(prev => ({ ...prev, lgu: value, barangay: '', purok: '', purok_id: '' }));
+            } else if (name === 'barangay') {
+                setFormData(prev => ({ ...prev, barangay: value, purok: '', purok_id: '' }));
+            } else if (name === 'purok_id') {
+                const selectedPurok = puroks.find(p => p.id === value);
+                setFormData(prev => ({ ...prev, purok_id: value, purok: selectedPurok ? selectedPurok.name : '' }));
+            } else {
+                setFormData((prev) => ({ ...prev, [name]: finalValue }));
+            }
         }
     };
 
@@ -628,7 +673,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
                                         <input
@@ -657,6 +702,26 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                                     age: e.target.value
                                                         ? Math.floor((Date.now() - new Date(e.target.value).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
                                                         : prev.age,
+                                                }))
+                                            }
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Membership Date *</label>
+                                        <input
+                                            type="date"
+                                            name="membership_date"
+                                            required
+                                            value={formData.membership_date
+                                                ? (formData.membership_date instanceof Date
+                                                    ? formData.membership_date.toISOString().split('T')[0]
+                                                    : String(formData.membership_date).split('T')[0])
+                                                : ''}
+                                            onChange={(e) =>
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    membership_date: e.target.value ? new Date(e.target.value) : undefined
                                                 }))
                                             }
                                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
@@ -771,7 +836,14 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                                                 key={h.id}
                                                                 onMouseDown={(e) => {
                                                                     e.preventDefault(); // prevent input from losing focus immediately which closes dropdown due to click-outside
-                                                                    setFormData(prev => ({ ...prev, household_id: h.id }));
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        household_id: h.id,
+                                                                        lgu: h.lgu,
+                                                                        barangay: h.barangay,
+                                                                        purok: h.purok,
+                                                                        purok_id: h.purok_id || ''
+                                                                    }));
                                                                     setHouseholdSearch(h.household_name);
                                                                     setIsHouseholdDropdownOpen(false);
                                                                 }}
@@ -824,14 +896,21 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Purok *</label>
-                                        <input
-                                            type="text"
-                                            name="purok"
+                                        <select
+                                            name="purok_id"
                                             required
-                                            value={formData.purok || ''}
+                                            value={formData.purok_id || ''}
                                             onChange={handleInputChange}
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                                        />
+                                            disabled={loadingPuroks || !formData.barangay}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 disabled:bg-gray-50 disabled:text-gray-400"
+                                        >
+                                            <option value="">
+                                                {loadingPuroks ? 'Loading puroks...' : !formData.barangay ? 'Select Barangay First' : 'Select Purok'}
+                                            </option>
+                                            {puroks.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             </div>

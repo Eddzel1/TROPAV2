@@ -17,6 +17,7 @@ interface MemberRow {
     middlename: string;
     contact_number: string;
     birthdate: string;
+    membership_date: string;
     sector: FamilyMember['sector'];
     year_level?: string;
     is_voter?: boolean;
@@ -33,6 +34,7 @@ const createEmptyRow = (householdLastname?: string): MemberRow => ({
     middlename: '',
     contact_number: '',
     birthdate: '',
+    membership_date: new Date().toISOString().split('T')[0],
     sector: 'General',
     year_level: '',
     is_voter: false,
@@ -187,7 +189,7 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 is_voter: r.is_voter || false,
                 is_household_leader: false,
                 is_cooperative_member: true,
-                membership_date: new Date(),
+                membership_date: r.membership_date ? new Date(r.membership_date) : new Date(),
                 phic_member: r.phic_member || false,
                 phic_no: r.phic_no || '',
             }));
@@ -226,14 +228,15 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">Last Name *</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[20%]">First Name *</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">Middle Name</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">Contact No.</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">Birthday</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">Sector</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[12%]">Last Name *</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[15%]">First Name *</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%]">Middle Name</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%]">Contact No.</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[12%]">Birthday</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[12%]">Mem. Date *</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[12%]">Sector</th>
                                         <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%]">PHIC</th>
-                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[10%] text-center">Actions</th>
+                                        <th className="pb-3 px-2 text-sm font-semibold text-gray-600 w-[7%] text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -282,6 +285,15 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                                                     type="date"
                                                     value={row.birthdate}
                                                     onChange={e => handleChange(row.id, 'birthdate', e.target.value)}
+                                                    required
+                                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-sans"
+                                                />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <input
+                                                    type="date"
+                                                    value={row.membership_date || ''}
+                                                    onChange={e => handleChange(row.id, 'membership_date', e.target.value)}
                                                     required
                                                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-sans"
                                                 />

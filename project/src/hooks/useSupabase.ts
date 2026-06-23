@@ -1,9 +1,106 @@
 import { useState, useEffect } from 'react';
 import { supabase, supabaseHelpers } from '../lib/supabase';
 import { Database } from '../types/database';
-import { Household, FamilyMember, DuesPayment, User, Location, ContributionRate } from '../types';
+import { Household, FamilyMember, DuesPayment, User, Location, ContributionRate, Purok, Officer } from '../types';
 
 type Tables = Database['public']['Tables'];
+
+export function transformHousehold(row: any): Household {
+    return {
+        id: row.id,
+        household_name: row.household_name,
+        lgu: row.lgu,
+        barangay: row.barangay,
+        purok: row.purok,
+        purok_id: row.purok_id || undefined,
+        household_leader_id: row.household_leader_id || undefined,
+        total_members: row.total_members || 0,
+        active_members: row.active_members || 0,
+        status: row.status as 'active' | 'inactive',
+        house_picture_url: row.house_picture_url || undefined,
+        house_picture_path: row.house_picture_path || undefined,
+        created_date: new Date(row.created_date),
+        updated_date: new Date(row.updated_date),
+        created_by: row.created_by
+    };
+}
+
+export function transformFamilyMember(row: any): FamilyMember {
+    return {
+        id: row.id,
+        household_id: row.household_id,
+        lastname: row.lastname,
+        firstname: row.firstname,
+        middlename: row.middlename || undefined,
+        extension: row.extension || undefined,
+        lgu: row.lgu,
+        barangay: row.barangay,
+        purok: row.purok,
+        purok_id: row.purok_id || undefined,
+        sector: row.sector || '',
+        is_voter: row.is_voter,
+        contact_number: row.contact_number || undefined,
+        is_household_leader: row.is_household_leader,
+        is_cooperative_member: row.is_cooperative_member,
+        membership_date: row.membership_date ? new Date(row.membership_date) : undefined,
+        birth_date: row.birth_date ? new Date(row.birth_date) : undefined,
+        age: row.age || undefined,
+        latitude: row.latitude || undefined,
+        longitude: row.longitude || undefined,
+        religion: row.religion || undefined,
+        school: row.school || undefined,
+        year_level: row.year_level || undefined,
+        profile_picture_url: row.profile_picture_url || undefined,
+        profile_picture_path: row.profile_picture_path || undefined,
+        created_date: new Date(row.created_date),
+        updated_date: new Date(row.updated_date),
+        created_by: row.created_by
+    };
+}
+
+export function transformDuesPayment(row: any): DuesPayment {
+    return {
+        id: row.id,
+        member_id: row.member_id,
+        household_id: row.household_id,
+        amount: row.amount,
+        payment_month: row.payment_month,
+        payment_for_month: row.payment_for_month || '',
+        payment_end_month: row.payment_end_month || '',
+        months_covered: row.months_covered || 1,
+        payment_date: new Date(row.payment_date),
+        payment_method: row.payment_method as DuesPayment['payment_method'],
+        reference_number: row.reference_number || undefined,
+        collected_by: row.collected_by,
+        notes: row.notes || undefined,
+        status: row.status as DuesPayment['status'],
+        created_date: new Date(row.created_date || ''),
+        updated_date: new Date(row.updated_date || ''),
+        created_by: row.created_by || '',
+        member: row.member ? {
+            firstname: row.member.firstname,
+            lastname: row.member.lastname
+        } : undefined,
+        household: row.household ? {
+            household_name: row.household.household_name
+        } : undefined
+    };
+}
+
+export function transformUser(row: any): User {
+    return {
+        id: row.id,
+        email: row.email,
+        firstname: row.firstname,
+        lastname: row.lastname,
+        role: row.role as User['role'],
+        status: row.status as User['status'],
+        last_login: row.last_login ? new Date(row.last_login) : undefined,
+        permissions: row.permissions || [],
+        created_date: new Date(row.created_date || ''),
+        updated_date: new Date(row.updated_date || '')
+    };
+}
 
 // Custom hook for households
 export function useHouseholds() {
@@ -18,22 +115,7 @@ export function useHouseholds() {
             const data = await supabaseHelpers.getHouseholds();
             console.log('Raw households data from Supabase:', data);
             // Transform Supabase data to application types
-            const transformedData: Household[] = data.map(row => ({
-                id: row.id,
-                household_name: row.household_name,
-                lgu: row.lgu,
-                barangay: row.barangay,
-                purok: row.purok,
-                household_leader_id: row.household_leader_id || undefined,
-                total_members: row.total_members,
-                active_members: row.active_members,
-                status: row.status as 'active' | 'inactive',
-                house_picture_url: row.house_picture_url || undefined,
-                house_picture_path: row.house_picture_path || undefined,
-                created_date: new Date(row.created_date),
-                updated_date: new Date(row.updated_date),
-                created_by: row.created_by
-            }));
+            const transformedData: Household[] = data.map(transformHousehold);
             console.log('Transformed households data:', transformedData);
             setHouseholds(transformedData);
             setError(null);
@@ -51,22 +133,7 @@ export function useHouseholds() {
             const newHousehold = await supabaseHelpers.createHousehold(household);
             console.log('Created household:', newHousehold);
             // Transform the new household data
-            const transformedHousehold: Household = {
-                id: newHousehold.id,
-                household_name: newHousehold.household_name,
-                lgu: newHousehold.lgu,
-                barangay: newHousehold.barangay,
-                purok: newHousehold.purok,
-                // household_leader_id: newHousehold.household_leader_id || undefined,
-                total_members: newHousehold.total_members,
-                active_members: newHousehold.active_members,
-                status: newHousehold.status as 'active' | 'inactive',
-                house_picture_url: newHousehold.house_picture_url || undefined,
-                house_picture_path: newHousehold.house_picture_path || undefined,
-                created_date: new Date(newHousehold.created_date),
-                updated_date: new Date(newHousehold.updated_date),
-                created_by: newHousehold.created_by
-            };
+            const transformedHousehold = transformHousehold(newHousehold);
             setHouseholds(prev => [transformedHousehold, ...prev]);
             return newHousehold;
         } catch (err) {
@@ -82,22 +149,7 @@ export function useHouseholds() {
             const updatedHousehold = await supabaseHelpers.updateHousehold(id, updates);
             console.log('Updated household:', updatedHousehold);
             // Transform the updated household data
-            const transformedHousehold: Household = {
-                id: updatedHousehold.id,
-                household_name: updatedHousehold.household_name,
-                lgu: updatedHousehold.lgu,
-                barangay: updatedHousehold.barangay,
-                purok: updatedHousehold.purok,
-                // household_leader_id: updatedHousehold.household_leader_id || undefined,
-                total_members: updatedHousehold.total_members,
-                active_members: updatedHousehold.active_members,
-                status: updatedHousehold.status as 'active' | 'inactive',
-                house_picture_url: updatedHousehold.house_picture_url || undefined,
-                house_picture_path: updatedHousehold.house_picture_path || undefined,
-                created_date: new Date(updatedHousehold.created_date),
-                updated_date: new Date(updatedHousehold.updated_date),
-                created_by: updatedHousehold.created_by
-            };
+            const transformedHousehold = transformHousehold(updatedHousehold);
             setHouseholds(prev => prev.map(h => h.id === id ? transformedHousehold : h));
             return updatedHousehold;
         } catch (err) {
@@ -136,7 +188,7 @@ export function useHouseholds() {
 }
 
 // Custom hook for family members
-export function useFamilyMembers(householdId?: string) {
+export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: boolean) {
     const [members, setMembers] = useState<FamilyMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -145,38 +197,10 @@ export function useFamilyMembers(householdId?: string) {
         try {
             setLoading(true);
             console.log('Fetching family members...');
-            const data = await supabaseHelpers.getFamilyMembers(householdId);
+            const data = await supabaseHelpers.getFamilyMembers(householdId, hasCoordinatesOnly);
             console.log('Raw family members data from Supabase:', data);
             // Transform Supabase data to application types
-            const transformedData: FamilyMember[] = data.map(row => ({
-                id: row.id,
-                household_id: row.household_id,
-                lastname: row.lastname,
-                firstname: row.firstname,
-                middlename: row.middlename || undefined,
-                extension: row.extension || undefined,
-                lgu: row.lgu,
-                barangay: row.barangay,
-                purok: row.purok,
-                sector: row.sector as FamilyMember['sector'],
-                is_voter: row.is_voter,
-                contact_number: row.contact_number || undefined,
-                is_household_leader: row.is_household_leader,
-                is_cooperative_member: row.is_cooperative_member,
-                membership_date: row.membership_date ? new Date(row.membership_date) : undefined,
-                birth_date: row.birth_date ? new Date(row.birth_date) : undefined,
-                age: row.age || undefined,
-                latitude: row.latitude || undefined,
-                longitude: row.longitude || undefined,
-                religion: row.religion || undefined,
-                school: row.school || undefined,
-                year_level: row.year_level || undefined,
-                profile_picture_url: row.profile_picture_url || undefined,
-                profile_picture_path: row.profile_picture_path || undefined,
-                created_date: new Date(row.created_date),
-                updated_date: new Date(row.updated_date),
-                created_by: row.created_by
-            }));
+            const transformedData: FamilyMember[] = data.map(transformFamilyMember);
             console.log('Transformed family members data:', transformedData);
             setMembers(transformedData);
             setError(null);
@@ -194,7 +218,6 @@ export function useFamilyMembers(householdId?: string) {
 
             // Extract pending profile image and house image if exists
             const pendingProfileImage = (member as any).pendingProfileImage as File | undefined;
-            const pendingHouseImage = (member as any).pendingHouseImage as File | undefined;
             const { household_name, ...memberDataWithoutImage } = member as any;
             delete (memberDataWithoutImage as any).pendingProfileImage;
             delete (memberDataWithoutImage as any).pendingHouseImage;
@@ -208,49 +231,30 @@ export function useFamilyMembers(householdId?: string) {
                     lgu: memberDataWithoutImage.lgu,
                     barangay: memberDataWithoutImage.barangay,
                     purok: memberDataWithoutImage.purok,
-                    status: 'active',
-                    created_by: 'current_user'
+                    status: 'active'
                 });
                 householdId = newHousehold.id;
-                console.log('Created household:', newHousehold);
-
-                // Handle house picture upload for new household
-                if (pendingHouseImage) {
-                    try {
-                        console.log('Uploading house picture for new household:', householdId);
-                        const { path, url } = await supabaseHelpers.uploadHousePicture(pendingHouseImage, householdId);
-
-                        // Update household with house picture info
-                        await supabaseHelpers.updateHousehold(householdId, {
-                            house_picture_url: url,
-                            house_picture_path: path
-                        });
-                        console.log('House picture uploaded and household updated');
-                    } catch (error) {
-                        console.error('Failed to upload house picture for new household:', error);
-                    }
-                }
             }
 
-            // Create the member with the household_id
-            const memberData = { ...memberDataWithoutImage, household_id: householdId };
+            // Insert member with household_id
+            const memberToCreate = {
+                ...memberDataWithoutImage,
+                household_id: householdId
+            };
+            const finalMemberData = await supabaseHelpers.createFamilyMember(memberToCreate);
+            console.log('Created member:', finalMemberData);
 
-            const newMember = await supabaseHelpers.createFamilyMember(memberData);
-            console.log('Created member:', newMember);
-
-            // Handle profile image upload for new member
-            let finalMemberData = newMember;
+            // Handle Profile Image Upload if exists
             if (pendingProfileImage) {
                 try {
-                    console.log('Uploading profile image for new member:', newMember.id);
-                    const { path, url } = await supabaseHelpers.uploadProfilePicture(pendingProfileImage, newMember.id);
-
-                    // Update member with profile picture info
-                    finalMemberData = await supabaseHelpers.updateFamilyMember(newMember.id, {
-                        profile_picture_url: url,
-                        profile_picture_path: path
+                    console.log('Uploading profile image for new member:', finalMemberData.id);
+                    const uploadResult = await supabaseHelpers.uploadProfilePicture(pendingProfileImage, finalMemberData.id);
+                    const updatedWithImage = await supabaseHelpers.updateFamilyMember(finalMemberData.id, {
+                        profile_picture_url: uploadResult.url,
+                        profile_picture_path: uploadResult.path
                     });
-                    console.log('Profile image uploaded and member updated:', finalMemberData);
+                    finalMemberData.profile_picture_url = updatedWithImage.profile_picture_url;
+                    finalMemberData.profile_picture_path = updatedWithImage.profile_picture_path;
                 } catch (error) {
                     console.error('Failed to upload profile image for new member:', error);
                     // Don't fail the entire operation, just log the error
@@ -258,35 +262,7 @@ export function useFamilyMembers(householdId?: string) {
             }
 
             // Transform the new member data
-            const transformedMember: FamilyMember = {
-                id: finalMemberData.id,
-                household_id: finalMemberData.household_id,
-                lastname: finalMemberData.lastname,
-                firstname: finalMemberData.firstname,
-                middlename: finalMemberData.middlename || undefined,
-                extension: finalMemberData.extension || undefined,
-                lgu: finalMemberData.lgu,
-                barangay: finalMemberData.barangay,
-                purok: finalMemberData.purok,
-                sector: finalMemberData.sector as FamilyMember['sector'],
-                is_voter: finalMemberData.is_voter,
-                contact_number: finalMemberData.contact_number || undefined,
-                is_household_leader: finalMemberData.is_household_leader,
-                is_cooperative_member: finalMemberData.is_cooperative_member,
-                membership_date: finalMemberData.membership_date ? new Date(finalMemberData.membership_date) : undefined,
-                birth_date: finalMemberData.birth_date ? new Date(finalMemberData.birth_date) : undefined,
-                age: finalMemberData.age || undefined,
-                latitude: finalMemberData.latitude || undefined,
-                longitude: finalMemberData.longitude || undefined,
-                religion: finalMemberData.religion || undefined,
-                school: finalMemberData.school || undefined,
-                year_level: finalMemberData.year_level || undefined,
-                profile_picture_url: finalMemberData.profile_picture_url || undefined,
-                profile_picture_path: finalMemberData.profile_picture_path || undefined,
-                created_date: new Date(finalMemberData.created_date),
-                updated_date: new Date(finalMemberData.updated_date),
-                // created_by: finalMemberData.created_by
-            };
+            const transformedMember = transformFamilyMember(finalMemberData);
             setMembers(prev => [transformedMember, ...prev]);
             return finalMemberData;
         } catch (err) {
@@ -304,35 +280,7 @@ export function useFamilyMembers(householdId?: string) {
             const updatedMember = await supabaseHelpers.updateFamilyMember(id, memberUpdates);
             console.log('Updated member:', updatedMember);
             // Transform the updated member data
-            const transformedMember: FamilyMember = {
-                id: updatedMember.id,
-                household_id: updatedMember.household_id,
-                lastname: updatedMember.lastname,
-                firstname: updatedMember.firstname,
-                middlename: updatedMember.middlename || undefined,
-                extension: updatedMember.extension || undefined,
-                lgu: updatedMember.lgu,
-                barangay: updatedMember.barangay,
-                purok: updatedMember.purok,
-                sector: updatedMember.sector as FamilyMember['sector'],
-                is_voter: updatedMember.is_voter,
-                contact_number: updatedMember.contact_number || undefined,
-                is_household_leader: updatedMember.is_household_leader,
-                is_cooperative_member: updatedMember.is_cooperative_member,
-                membership_date: updatedMember.membership_date ? new Date(updatedMember.membership_date) : undefined,
-                birth_date: updatedMember.birth_date ? new Date(updatedMember.birth_date) : undefined,
-                age: updatedMember.age || undefined,
-                latitude: updatedMember.latitude || undefined,
-                longitude: updatedMember.longitude || undefined,
-                religion: updatedMember.religion || undefined,
-                school: updatedMember.school || undefined,
-                year_level: updatedMember.year_level || undefined,
-                profile_picture_url: updatedMember.profile_picture_url || undefined,
-                profile_picture_path: updatedMember.profile_picture_path || undefined,
-                created_date: new Date(updatedMember.created_date),
-                updated_date: new Date(updatedMember.updated_date),
-                // created_by: updatedMember.created_by
-            };
+            const transformedMember = transformFamilyMember(updatedMember);
             setMembers(prev => prev.map(m => m.id === id ? transformedMember : m));
             return updatedMember;
         } catch (err) {
@@ -369,7 +317,7 @@ export function useFamilyMembers(householdId?: string) {
 
     useEffect(() => {
         fetchMembers();
-    }, [householdId]);
+    }, [householdId, hasCoordinatesOnly]);
 
     return {
         members,
@@ -383,7 +331,7 @@ export function useFamilyMembers(householdId?: string) {
 }
 
 // Custom hook for dues payments
-export function useDuesPayments(memberId?: string, householdId?: string) {
+export function useDuesPayments(memberId?: string, householdId?: string, limit?: number, sinceMonth?: string) {
     const [payments, setPayments] = useState<DuesPayment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -391,27 +339,9 @@ export function useDuesPayments(memberId?: string, householdId?: string) {
     const fetchPayments = async () => {
         try {
             setLoading(true);
-            const data = await supabaseHelpers.getDuesPayments(memberId, householdId);
+            const data = await supabaseHelpers.getDuesPayments(memberId, householdId, limit, sinceMonth);
             // Transform Supabase data to application types
-            const transformedData: DuesPayment[] = data.map(row => ({
-                id: row.id,
-                member_id: row.member_id,
-                household_id: row.household_id,
-                amount: row.amount,
-                payment_month: row.payment_month,
-                payment_for_month: row.payment_for_month || '',
-                payment_end_month: row.payment_end_month || '',
-                months_covered: row.months_covered || 1,
-                payment_date: new Date(row.payment_date),
-                payment_method: row.payment_method as DuesPayment['payment_method'],
-                reference_number: row.reference_number || undefined,
-                collected_by: row.collected_by,
-                notes: row.notes || undefined,
-                status: row.status as DuesPayment['status'],
-                created_date: new Date(row.created_date),
-                updated_date: new Date(row.updated_date),
-                created_by: row.created_by
-            }));
+            const transformedData: DuesPayment[] = data.map(transformDuesPayment);
             setPayments(transformedData);
             setError(null);
         } catch (err) {
@@ -427,25 +357,7 @@ export function useDuesPayments(memberId?: string, householdId?: string) {
             const newPayment = await supabaseHelpers.createDuesPayment(payment);
             console.log('Created payment:', newPayment);
             // Transform the new payment data
-            const transformedPayment: DuesPayment = {
-                id: newPayment.id,
-                member_id: newPayment.member_id,
-                household_id: newPayment.household_id,
-                amount: newPayment.amount,
-                payment_month: newPayment.payment_month,
-                payment_for_month: newPayment.payment_for_month || '',
-                payment_end_month: newPayment.payment_end_month || '',
-                months_covered: newPayment.months_covered || 1,
-                payment_date: new Date(newPayment.payment_date),
-                payment_method: newPayment.payment_method as DuesPayment['payment_method'],
-                reference_number: newPayment.reference_number || undefined,
-                collected_by: newPayment.collected_by,
-                notes: newPayment.notes || undefined,
-                status: newPayment.status as DuesPayment['status'],
-                created_date: new Date(newPayment.created_date),
-                updated_date: new Date(newPayment.updated_date),
-                created_by: newPayment.created_by
-            };
+            const transformedPayment: DuesPayment = transformDuesPayment(newPayment);
             setPayments(prev => [transformedPayment, ...prev]);
             return newPayment;
         } catch (err) {
@@ -461,25 +373,7 @@ export function useDuesPayments(memberId?: string, householdId?: string) {
             const updatedPayment = await supabaseHelpers.updateDuesPayment(id, updates);
             console.log('Updated payment:', updatedPayment);
             // Transform the updated payment data
-            const transformedPayment: DuesPayment = {
-                id: updatedPayment.id,
-                member_id: updatedPayment.member_id,
-                household_id: updatedPayment.household_id,
-                amount: updatedPayment.amount,
-                payment_month: updatedPayment.payment_month,
-                payment_for_month: updatedPayment.payment_for_month || '',
-                payment_end_month: updatedPayment.payment_end_month || '',
-                months_covered: updatedPayment.months_covered || 1,
-                payment_date: new Date(updatedPayment.payment_date),
-                payment_method: updatedPayment.payment_method as DuesPayment['payment_method'],
-                reference_number: updatedPayment.reference_number || undefined,
-                collected_by: updatedPayment.collected_by,
-                notes: updatedPayment.notes || undefined,
-                status: updatedPayment.status as DuesPayment['status'],
-                created_date: new Date(updatedPayment.created_date),
-                updated_date: new Date(updatedPayment.updated_date),
-                created_by: updatedPayment.created_by
-            };
+            const transformedPayment: DuesPayment = transformDuesPayment(updatedPayment);
             setPayments(prev => prev.map(p => p.id === id ? transformedPayment : p));
             return updatedPayment;
         } catch (err) {
@@ -504,7 +398,7 @@ export function useDuesPayments(memberId?: string, householdId?: string) {
 
     useEffect(() => {
         fetchPayments();
-    }, [memberId, householdId]);
+    }, [memberId, householdId, limit, sinceMonth]);
 
     return {
         payments,
@@ -528,19 +422,7 @@ export function useUsers() {
             setLoading(true);
             const data = await supabaseHelpers.getUsers();
             // Transform Supabase data to application types
-            const transformedData: User[] = data.map(row => ({
-                id: row.id,
-                email: row.email,
-                firstname: row.firstname,
-                lastname: row.lastname,
-                role: row.role as User['role'],
-                status: row.status as User['status'],
-                last_login: row.last_login ? new Date(row.last_login) : undefined,
-                permissions: row.permissions,
-                created_date: new Date(row.created_date),
-                updated_date: new Date(row.updated_date),
-                created_by: row.created_by
-            }));
+            const transformedData: User[] = data.map(transformUser);
             setUsers(transformedData);
             setError(null);
         } catch (err) {
@@ -557,19 +439,7 @@ export function useUsers() {
             console.log('useSupabase: User created successfully:', newUser);
 
             // Transform the new user data
-            const transformedUser: User = {
-                id: newUser.id,
-                email: newUser.email,
-                firstname: newUser.firstname,
-                lastname: newUser.lastname,
-                role: newUser.role as User['role'],
-                status: newUser.status as User['status'],
-                last_login: newUser.last_login ? new Date(newUser.last_login) : undefined,
-                permissions: newUser.permissions,
-                created_date: new Date(newUser.created_date),
-                updated_date: new Date(newUser.updated_date),
-                // created_by: newUser.created_by
-            };
+            const transformedUser: User = transformUser(newUser);
 
             setUsers(prev => [transformedUser, ...prev]);
             return newUser;
@@ -584,19 +454,7 @@ export function useUsers() {
         try {
             const updatedUser = await supabaseHelpers.updateUser(id, updates);
             // Transform the updated user data
-            const transformedUser: User = {
-                id: updatedUser.id,
-                email: updatedUser.email,
-                firstname: updatedUser.firstname,
-                lastname: updatedUser.lastname,
-                role: updatedUser.role as User['role'],
-                status: updatedUser.status as User['status'],
-                last_login: updatedUser.last_login ? new Date(updatedUser.last_login) : undefined,
-                permissions: updatedUser.permissions,
-                created_date: new Date(updatedUser.created_date),
-                updated_date: new Date(updatedUser.updated_date),
-                // created_by: updatedUser.created_by
-            };
+            const transformedUser: User = transformUser(updatedUser);
             setUsers(prev => prev.map(u => u.id === id ? transformedUser : u));
             return updatedUser;
         } catch (err) {
@@ -645,9 +503,9 @@ export function useLocations() {
                 id: row.id,
                 lgu: row.lgu,
                 barangay: row.barangay,
-                created_date: new Date(row.created_date),
-                updated_date: new Date(row.updated_date),
-                created_by: row.created_by
+                created_date: new Date(row.created_date || ''),
+                updated_date: new Date(row.updated_date || ''),
+                created_by: row.created_by || ''
             }));
             setLocations(transformedData);
             setError(null);
@@ -666,9 +524,9 @@ export function useLocations() {
                 id: newLocation.id,
                 lgu: newLocation.lgu,
                 barangay: newLocation.barangay,
-                created_date: new Date(newLocation.created_date),
-                updated_date: new Date(newLocation.updated_date),
-                created_by: newLocation.created_by
+                created_date: new Date(newLocation.created_date || ''),
+                updated_date: new Date(newLocation.updated_date || ''),
+                created_by: newLocation.created_by || ''
             };
             setLocations(prev => [transformedLocation, ...prev]);
             return newLocation;
@@ -686,9 +544,9 @@ export function useLocations() {
                 id: updatedLocation.id,
                 lgu: updatedLocation.lgu,
                 barangay: updatedLocation.barangay,
-                created_date: new Date(updatedLocation.created_date),
-                updated_date: new Date(updatedLocation.updated_date),
-                created_by: updatedLocation.created_by
+                created_date: new Date(updatedLocation.created_date || ''),
+                updated_date: new Date(updatedLocation.updated_date || ''),
+                created_by: updatedLocation.created_by || ''
             };
             setLocations(prev => prev.map(l => l.id === id ? transformedLocation : l));
             return updatedLocation;
@@ -731,6 +589,8 @@ export function useDashboardStats() {
         totalHouseholds: 0,
         totalMembers: 0,
         activeMembers: 0,
+        totalLeaders: 0,
+        totalVoters: 0,
         monthlyCollection: 0,
         pendingDues: 0
     });
@@ -800,8 +660,8 @@ export function useAuthProfile() {
                         status: data.status as 'active' | 'inactive',
                         last_login: data.last_login ? new Date(data.last_login) : undefined,
                         permissions: data.permissions || [],
-                        created_date: new Date(data.created_date),
-                        updated_date: new Date(data.updated_date)
+                        created_date: new Date(data.created_date || ''),
+                        updated_date: new Date(data.updated_date || '')
                     });
                 }
             } catch (err) {
@@ -896,4 +756,452 @@ export function useContributionRates() {
     useEffect(() => { fetchRates(); }, []);
 
     return { rates, loading, error, refetch: fetchRates, createRate };
+}
+
+export function useDuesPaymentsPaginated(
+    members: FamilyMember[],
+    households: Household[]
+) {
+    const [payments, setPayments] = useState<DuesPayment[]>([]);
+    const [count, setCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterMonth, setFilterMonth] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [filterMethod, setFilterMethod] = useState('');
+
+    const fetchPaginatedPayments = async () => {
+        try {
+            setLoading(true);
+
+            // Resolve member and household IDs for searching
+            const matchingMemberIds = searchTerm
+                ? members
+                      .filter(m => `${m.firstname} ${m.lastname}`.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map(m => m.id)
+                      .slice(0, 100)
+                : [];
+
+            const matchingHouseholdIds = searchTerm
+                ? households
+                      .filter(h => h.household_name.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map(h => h.id)
+                      .slice(0, 100)
+                : [];
+
+            const { data, count: totalCount } = await supabaseHelpers.getDuesPaymentsPaginated({
+                page,
+                limit,
+                searchTerm,
+                month: filterMonth,
+                status: filterStatus,
+                method: filterMethod,
+                matchingMemberIds,
+                matchingHouseholdIds
+            });
+
+            const transformedData: DuesPayment[] = data.map(transformDuesPayment);
+
+            setPayments(transformedData);
+            setCount(totalCount);
+            setError(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Reset page to 1 when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [searchTerm, filterMonth, filterStatus, filterMethod]);
+
+    useEffect(() => {
+        fetchPaginatedPayments();
+    }, [page, limit, searchTerm, filterMonth, filterStatus, filterMethod]);
+
+    return {
+        payments,
+        count,
+        loading,
+        error,
+        page,
+        setPage,
+        limit,
+        setLimit,
+        searchTerm,
+        setSearchTerm,
+        filterMonth,
+        setFilterMonth,
+        filterStatus,
+        setFilterStatus,
+        filterMethod,
+        setFilterMethod,
+        refetch: fetchPaginatedPayments
+    };
+}
+
+export function useDuesStats() {
+    const [stats, setStats] = useState({
+        totalPayments: 0,
+        totalCollection: 0,
+        monthlyCollection: 0,
+        outstandingMembers: 0
+    });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchStats = async () => {
+        try {
+            setLoading(true);
+            const data = await supabaseHelpers.getDuesCollectionStats();
+            setStats(data);
+            setError(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchStats();
+    }, []);
+
+    return {
+        stats,
+        loading,
+        error,
+        refetch: fetchStats
+    };
+}
+
+export function useDuesPaymentsMetadata(memberIds?: string[]) {
+    const [metadata, setMetadata] = useState<{
+        id: string;
+        amount: number;
+        status: string;
+        payment_month: string;
+        member_id: string;
+        payment_for_month: string;
+        payment_end_month: string;
+        payment_method: string;
+    }[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchMetadata = async () => {
+        try {
+            setLoading(true);
+            const data = await supabaseHelpers.getDuesPaymentsMetadata(memberIds);
+            setMetadata(data as any);
+            setError(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const memberIdsKey = memberIds ? memberIds.join(',') : '';
+
+    useEffect(() => {
+        fetchMetadata();
+    }, [memberIdsKey]);
+
+    return {
+        metadata,
+        loading,
+        error,
+        refetch: fetchMetadata
+    };
+}
+
+// Paginated hook for households
+export function useHouseholdsPaginated() {
+    const [households, setHouseholds] = useState<Household[]>([]);
+    const [count, setCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const [page, setPage] = useState(1);
+    const limit = 8;
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterLGU, setFilterLGU] = useState('');
+    const [filterBarangay, setFilterBarangay] = useState('');
+    const [filterPuroks, setFilterPuroks] = useState<string[]>([]);
+    const [sortField, setSortField] = useState<keyof Household>('household_name');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+    const fetchHouseholds = async () => {
+        try {
+            setLoading(true);
+            const { data, count: totalCount } = await supabaseHelpers.getHouseholdsPaginated({
+                page,
+                limit,
+                searchTerm,
+                filterLGU,
+                filterBarangay,
+                filterPuroks,
+                sortField: sortField as string,
+                sortDirection
+            });
+
+            const transformedData: Household[] = data.map(transformHousehold);
+
+            setHouseholds(transformedData);
+            setCount(totalCount);
+            setError(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchHouseholds();
+    }, [page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, sortField, sortDirection]);
+
+    return {
+        households,
+        count,
+        loading,
+        error,
+        page,
+        setPage,
+        limit,
+        searchTerm,
+        setSearchTerm,
+        filterLGU,
+        setFilterLGU,
+        filterBarangay,
+        setFilterBarangay,
+        filterPuroks,
+        setFilterPuroks,
+        sortField,
+        setSortField,
+        sortDirection,
+        setSortDirection,
+        refetch: fetchHouseholds
+    };
+}
+
+// Paginated hook for family members
+export function useFamilyMembersPaginated(householdId?: string) {
+    const [members, setMembers] = useState<FamilyMember[]>([]);
+    const [count, setCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const [page, setPage] = useState(1);
+    const limit = 8;
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterSector, setFilterSector] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+
+    const fetchMembers = async () => {
+        try {
+            setLoading(true);
+            const { data, count: totalCount } = await supabaseHelpers.getFamilyMembersPaginated({
+                page,
+                limit,
+                searchTerm,
+                householdId,
+                filterSector,
+                filterStatus
+            });
+
+            const transformedData: FamilyMember[] = data.map(transformFamilyMember);
+
+            setMembers(transformedData);
+            setCount(totalCount);
+            setError(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMembers();
+    }, [page, limit, searchTerm, householdId, filterSector, filterStatus]);
+
+    return {
+        members,
+        count,
+        loading,
+        error,
+        page,
+        setPage,
+        limit,
+        searchTerm,
+        setSearchTerm,
+        filterSector,
+        setFilterSector,
+        filterStatus,
+        setFilterStatus,
+        refetch: fetchMembers
+    };
+}
+
+export function transformPurok(row: any): Purok {
+    return {
+        id: row.id,
+        location_id: row.location_id,
+        name: row.name,
+        created_at: new Date(row.created_at),
+        updated_at: new Date(row.updated_at)
+    };
+}
+
+export function transformOfficer(row: any): Officer {
+    return {
+        id: row.id,
+        level: row.level as Officer['level'],
+        location_id: row.location_id,
+        purok_id: row.purok_id || undefined,
+        position: row.position as Officer['position'],
+        member_id: row.member_id,
+        created_at: new Date(row.created_at),
+        updated_at: new Date(row.updated_at),
+        member: row.member ? {
+            firstname: row.member.firstname,
+            lastname: row.member.lastname,
+            contact_number: row.member.contact_number || undefined,
+            profile_picture_url: row.member.profile_picture_url || undefined
+        } : undefined
+    };
+}
+
+export function usePuroks(locationId?: string) {
+    const [puroks, setPuroks] = useState<Purok[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchPuroks = async () => {
+        try {
+            setLoading(true);
+            const data = await supabaseHelpers.getPuroks(locationId);
+            setPuroks(data.map(transformPurok));
+            setError(null);
+        } catch (err) {
+            console.error('Error fetching puroks:', err);
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPuroks();
+    }, [locationId]);
+
+    const createPurok = async (name: string, locId: string) => {
+        try {
+            const data = await supabaseHelpers.createPurok({ location_id: locId, name });
+            const newPurok = transformPurok(data);
+            setPuroks(prev => [...prev, newPurok].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })));
+            return newPurok;
+        } catch (err) {
+            console.error('Error creating purok:', err);
+            throw err;
+        }
+    };
+
+    const updatePurok = async (id: string, name: string) => {
+        try {
+            const data = await supabaseHelpers.updatePurok(id, { name });
+            const updated = transformPurok(data);
+            setPuroks(prev => prev.map(p => p.id === id ? updated : p).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })));
+            return updated;
+        } catch (err) {
+            console.error('Error updating purok:', err);
+            throw err;
+        }
+    };
+
+    const deletePurok = async (id: string) => {
+        try {
+            await supabaseHelpers.deletePurok(id);
+            setPuroks(prev => prev.filter(p => p.id !== id));
+        } catch (err) {
+            console.error('Error deleting purok:', err);
+            throw err;
+        }
+    };
+
+    return {
+        puroks,
+        loading,
+        error,
+        createPurok,
+        updatePurok,
+        deletePurok,
+        refetch: fetchPuroks
+    };
+}
+
+export function useOfficers(locationId?: string, purokId?: string) {
+    const [officers, setOfficers] = useState<Officer[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchOfficers = async () => {
+        if (!locationId) {
+            setOfficers([]);
+            setLoading(false);
+            return;
+        }
+        try {
+            setLoading(true);
+            const data = await supabaseHelpers.getOfficers(locationId, purokId);
+            setOfficers(data.map(transformOfficer));
+            setError(null);
+        } catch (err) {
+            console.error('Error fetching officers:', err);
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOfficers();
+    }, [locationId, purokId]);
+
+    const assignOfficer = async (officerData: Omit<Database['public']['Tables']['officers']['Insert'], 'id' | 'created_at' | 'updated_at'>) => {
+        try {
+            await supabaseHelpers.assignOfficer(officerData);
+            await fetchOfficers();
+        } catch (err) {
+            console.error('Error assigning officer:', err);
+            throw err;
+        }
+    };
+
+    const removeOfficer = async (id: string) => {
+        try {
+            await supabaseHelpers.removeOfficer(id);
+            setOfficers(prev => prev.filter(o => o.id !== id));
+        } catch (err) {
+            console.error('Error removing officer:', err);
+            throw err;
+        }
+    };
+
+    return {
+        officers,
+        loading,
+        error,
+        assignOfficer,
+        removeOfficer,
+        refetch: fetchOfficers
+    };
 }

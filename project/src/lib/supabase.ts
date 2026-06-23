@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '../types/database';
 import { generateProfileImagePath } from './imageUtils';
+import { getOutstandingMonths } from './utils';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -40,30 +41,49 @@ export const supabaseHelpers = {
   },
 
   async getHouseholds() {
-    let allData: any[] = [];
-    const limit = 1000;
-    let from = 0;
-    let hasMore = true;
+    const { data, error } = await supabase
+      .from('households')
+      .select('*')
+      .order('created_date', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return data || [];
+  },
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('households')
-        .select('*')
-        .order('created_date', { ascending: false })
-        .range(from, from + limit - 1);
+  async getHouseholdsPaginated(options: { 
+    page: number; 
+    limit: number; 
+    searchTerm?: string;
+    filterLGU?: string;
+    filterBarangay?: string;
+    filterPuroks?: string[];
+    sortField?: string;
+    sortDirection?: 'asc' | 'desc';
+  }) {
+    const { page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, sortField = 'created_date', sortDirection = 'desc' } = options;
+    const from = (page - 1) * limit;
+    const to = Math.min(from + limit - 1, 499);
 
-      if (error) throw error;
-      if (data && data.length > 0) {
-        allData = [...allData, ...data];
-        from += limit;
-      } else {
-        hasMore = false;
-      }
-      if (data && data.length < limit) {
-        hasMore = false;
-      }
+    if (from >= 500) {
+      return { data: [], count: 500 };
     }
-    return allData;
+
+    let query = supabase.from('households').select('*', { count: 'exact' });
+
+    if (filterLGU) query = query.eq('lgu', filterLGU);
+    if (filterBarangay) query = query.eq('barangay', filterBarangay);
+    if (filterPuroks && filterPuroks.length > 0) query = query.in('purok', filterPuroks);
+
+    if (searchTerm) {
+      query = query.or(`household_name.ilike.%${searchTerm}%,lgu.ilike.%${searchTerm}%,barangay.ilike.%${searchTerm}%`);
+    }
+
+    query = query.order(sortField, { ascending: sortDirection === 'asc' }).range(from, to);
+
+    const { data, count, error } = await query;
+    if (error) throw error;
+
+    return { data: data || [], count: count !== null ? Math.min(count, 500) : 0 };
   },
 
   async createHousehold(household: Omit<Database['public']['Tables']['households']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
@@ -96,29 +116,66 @@ export const supabaseHelpers = {
     if (error) throw error;
   },
 
-  async getFamilyMembers(householdId?: string) {
-    let allData: any[] = [];
-    const limit = 1000;
-    let from = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      let query = supabase.from('family_members').select(`*, household:households!family_members_household_id_fkey(household_name, lgu, barangay, purok)`).order('created_date', { ascending: false }).range(from, from + limit - 1);
-      if (householdId) { query = query.eq('household_id', householdId); }
-      const { data, error } = await query;
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        allData = [...allData, ...data];
-        from += limit;
-      } else {
-        hasMore = false;
-      }
-      if (data && data.length < limit) {
-        hasMore = false;
-      }
+  async getFamilyMembers(householdId?: string, hasCoordinatesOnly?: boolean) {
+    let q = supabase
+      .from('family_members')
+      .select(`*, household:households!family_members_household_id_fkey(household_name, lgu, barangay, purok)`)
+      .order('created_date', { ascending: false });
+    if (householdId) q = q.eq('household_id', householdId);
+    if (hasCoordinatesOnly) {
+      q = q.not('latitude', 'is', null).not('longitude', 'is', null);
     }
-    return allData;
+    q = q.limit(500);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getFamilyMembersPaginated(options: { 
+    page: number; 
+    limit: number; 
+    searchTerm?: string; 
+    householdId?: string;
+    filterSector?: string;
+    filterStatus?: string;
+  }) {
+    const { page, limit, searchTerm, householdId, filterSector, filterStatus } = options;
+    const from = (page - 1) * limit;
+    const to = Math.min(from + limit - 1, 499);
+
+    if (from >= 500) {
+      return { data: [], count: 500 };
+    }
+
+    let query = supabase
+      .from('family_members')
+      .select(`*, household:households!family_members_household_id_fkey(household_name, lgu, barangay, purok)`, { count: 'exact' });
+
+    if (householdId) {
+      query = query.eq('household_id', householdId);
+    }
+
+    if (filterStatus) {
+      if (filterStatus === 'member') query = query.eq('is_cooperative_member', true);
+      else if (filterStatus === 'non-member') query = query.eq('is_cooperative_member', false);
+      else if (filterStatus === 'leader') query = query.eq('is_household_leader', true);
+      else if (filterStatus === 'voter') query = query.eq('is_voter', true);
+    }
+
+    if (filterSector) {
+      query = query.ilike('sector', `%${filterSector}%`);
+    }
+
+    if (searchTerm) {
+      query = query.or(`firstname.ilike.%${searchTerm}%,lastname.ilike.%${searchTerm}%,contact_number.ilike.%${searchTerm}%`);
+    }
+
+    query = query.order('created_date', { ascending: false }).range(from, to);
+
+    const { data, count, error } = await query;
+    if (error) throw error;
+
+    return { data: data || [], count: count !== null ? Math.min(count, 500) : 0 };
   },
 
   async createFamilyMember(member: Omit<Database['public']['Tables']['family_members']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
@@ -139,30 +196,170 @@ export const supabaseHelpers = {
     if (error) throw error;
   },
 
-  async getDuesPayments(memberId?: string, householdId?: string) {
-    let allData: any[] = [];
-    const limit = 1000;
-    let from = 0;
-    let hasMore = true;
+  async getDuesPayments(memberId?: string, householdId?: string, limit?: number, sinceMonth?: string) {
+    let q = supabase
+      .from('dues_payments')
+      .select(`*, member:family_members(firstname, lastname), household:households(household_name)`)
+      .order('payment_date', { ascending: false });
+    if (memberId) q = q.eq('member_id', memberId);
+    if (householdId) q = q.eq('household_id', householdId);
+    if (sinceMonth) q = q.gte('payment_month', sinceMonth);
+    
+    q = q.limit(limit || 500);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  },
 
-    while (hasMore) {
-      let query = supabase.from('dues_payments').select(`*, member:family_members(firstname, lastname), household:households(household_name)`).order('payment_date', { ascending: false }).range(from, from + limit - 1);
-      if (memberId) { query = query.eq('member_id', memberId); }
-      if (householdId) { query = query.eq('household_id', householdId); }
-      const { data, error } = await query;
-      if (error) throw error;
+  async getDuesPaymentsPaginated(options: {
+    page: number;
+    limit: number;
+    searchTerm?: string;
+    month?: string;
+    status?: string;
+    method?: string;
+    matchingMemberIds?: string[];
+    matchingHouseholdIds?: string[];
+  }) {
+    const { page, limit, searchTerm, month, status, method, matchingMemberIds, matchingHouseholdIds } = options;
+    const from = (page - 1) * limit;
+    const to = Math.min(from + limit - 1, 499);
 
-      if (data && data.length > 0) {
-        allData = [...allData, ...data];
-        from += limit;
-      } else {
-        hasMore = false;
-      }
-      if (data && data.length < limit) {
-        hasMore = false;
-      }
+    if (from >= 500) {
+      return { data: [], count: 500 };
     }
-    return allData;
+
+    let query = supabase
+      .from('dues_payments')
+      .select(`*, member:family_members(firstname, lastname), household:households(household_name)`, { count: 'exact' });
+
+    if (month) {
+      query = query.eq('payment_month', month);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (method) {
+      query = query.eq('payment_method', method);
+    }
+
+    if (searchTerm) {
+      const orConditions: string[] = [];
+      if (matchingMemberIds && matchingMemberIds.length > 0) {
+        orConditions.push(`member_id.in.(${matchingMemberIds.join(',')})`);
+      }
+      if (matchingHouseholdIds && matchingHouseholdIds.length > 0) {
+        orConditions.push(`household_id.in.(${matchingHouseholdIds.join(',')})`);
+      }
+      orConditions.push(`reference_number.ilike.%${searchTerm}%`);
+      query = query.or(orConditions.join(','));
+    }
+
+    query = query.order('payment_date', { ascending: false }).range(from, to);
+
+    const { data, count, error } = await query;
+    if (error) throw error;
+
+    return {
+      data: data || [],
+      count: count !== null ? Math.min(count, 500) : 0
+    };
+  },
+
+  async getDuesPaymentsMetadata(memberIds?: string[]) {
+    if (memberIds && memberIds.length > 0) {
+      const chunkSize = 100;
+      const chunks = [];
+      for (let i = 0; i < memberIds.length; i += chunkSize) {
+        chunks.push(memberIds.slice(i, i + chunkSize));
+      }
+      const results = await Promise.all(
+        chunks.map(chunk =>
+          supabase
+            .from('dues_payments')
+            .select('id, amount, status, payment_month, member_id, payment_for_month, payment_end_month, payment_method')
+            .in('member_id', chunk)
+        )
+      );
+      return results.flatMap(r => { if (r.error) throw r.error; return r.data || []; });
+    }
+
+    const { data, error } = await supabase
+      .from('dues_payments')
+      .select('id, amount, status, payment_month, member_id, payment_for_month, payment_end_month, payment_method')
+      .order('payment_date', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getDuesCollectionStats() {
+    const { count: totalPaymentsCount, error: countError } = await supabase
+      .from('dues_payments')
+      .select('*', { count: 'exact', head: true });
+    if (countError) throw countError;
+
+    const pageSize = 1000;
+    const paymentPages = Math.ceil((totalPaymentsCount || 0) / pageSize);
+    let allPayments: { amount: number; status: string | null; payment_month: string; member_id: string; payment_for_month?: string | null; payment_end_month?: string | null }[] = [];
+    
+    if (totalPaymentsCount && totalPaymentsCount > 0) {
+      const results = await Promise.all(
+        Array.from({ length: paymentPages }, (_, i) =>
+          supabase
+            .from('dues_payments')
+            .select('amount, status, payment_month, member_id, payment_for_month, payment_end_month')
+            .range(i * pageSize, (i + 1) * pageSize - 1)
+        )
+      );
+      allPayments = results.flatMap(r => { if (r.error) throw r.error; return r.data || []; });
+    }
+
+    const { count: totalCoopCount, error: coopCountError } = await supabase
+      .from('family_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_cooperative_member', true);
+    if (coopCountError) throw coopCountError;
+
+    let coopMembers: { id: string; membership_date: string | null }[] = [];
+    if (totalCoopCount && totalCoopCount > 0) {
+      const coopPages = Math.ceil(totalCoopCount / pageSize);
+      const results = await Promise.all(
+        Array.from({ length: coopPages }, (_, i) =>
+          supabase
+            .from('family_members')
+            .select('id, membership_date')
+            .eq('is_cooperative_member', true)
+            .range(i * pageSize, (i + 1) * pageSize - 1)
+        )
+      );
+      coopMembers = results.flatMap(r => { if (r.error) throw r.error; return r.data || []; });
+    }
+
+    const completedPayments = allPayments.filter(p => p.status === 'completed');
+    const totalCollection = completedPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+    
+    const currentMonthISO = new Date().toISOString().slice(0, 7);
+    const monthlyCollection = completedPayments
+      .filter(p => p.payment_month === currentMonthISO)
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const outstandingMembers = coopMembers.filter(member => {
+      const memberPayments = allPayments.filter(p => p.member_id === member.id);
+      const outstanding = getOutstandingMonths(
+        member.membership_date ? new Date(member.membership_date) : undefined,
+        memberPayments as any,
+        currentMonthISO
+      );
+      return outstanding.length > 0;
+    }).length;
+
+    return {
+      totalPayments: totalPaymentsCount || 0,
+      totalCollection,
+      monthlyCollection,
+      outstandingMembers
+    };
   },
 
   async createDuesPayment(payment: Omit<Database['public']['Tables']['dues_payments']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
@@ -240,6 +437,70 @@ export const supabaseHelpers = {
     if (error) throw error;
   },
 
+  async getPuroks(locationId?: string) {
+    let query = supabase.from('puroks').select('*').order('name', { ascending: true });
+    if (locationId) {
+      query = query.eq('location_id', locationId);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  },
+
+  async createPurok(purok: Omit<Database['public']['Tables']['puroks']['Insert'], 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase.from('puroks').insert(purok).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async updatePurok(id: string, updates: Database['public']['Tables']['puroks']['Update']) {
+    const { data, error } = await supabase.from('puroks').update(updates).eq('id', id).select().maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error(`Purok with id ${id} not found`);
+    return data;
+  },
+
+  async deletePurok(id: string) {
+    const { error } = await supabase.from('puroks').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  async getOfficers(locationId: string, purokId?: string) {
+    let query = supabase
+      .from('officers')
+      .select('*, member:family_members(firstname, lastname, contact_number, profile_picture_url)');
+    
+    if (purokId) {
+      query = query.eq('level', 'purok').eq('purok_id', purokId);
+    } else {
+      query = query.eq('level', 'barangay').eq('location_id', locationId);
+    }
+    
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  },
+
+  async assignOfficer(officer: Omit<Database['public']['Tables']['officers']['Insert'], 'id' | 'created_at' | 'updated_at'>) {
+    if (officer.position !== 'Board Member') {
+      const query = supabase.from('officers').delete();
+      if (officer.level === 'purok') {
+        await query.eq('level', 'purok').eq('purok_id', officer.purok_id!).eq('position', officer.position);
+      } else {
+        await query.eq('level', 'barangay').eq('location_id', officer.location_id).eq('position', officer.position);
+      }
+    }
+
+    const { data, error } = await supabase.from('officers').insert(officer).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async removeOfficer(id: string) {
+    const { error } = await supabase.from('officers').delete().eq('id', id);
+    if (error) throw error;
+  },
+
   async searchVoters(
     lastname: string,
     firstname: string,
@@ -274,23 +535,37 @@ export const supabaseHelpers = {
 
 
   async getDashboardStats() {
-    const [householdsResult, membersResult, paymentsResult] = await Promise.all([
-      supabase.from('households').select('id, status'),
-      supabase.from('family_members').select('id, is_cooperative_member'),
-      supabase.from('dues_payments').select('amount, status, payment_month').eq('status', 'completed')
+    const [
+      householdsCount,
+      membersCount,
+      activeMembersCount,
+      leadersCount,
+      votersCount,
+      paymentsResult
+    ] = await Promise.all([
+      supabase.from('households').select('*', { count: 'exact', head: true }),
+      supabase.from('family_members').select('*', { count: 'exact', head: true }),
+      supabase.from('family_members').select('*', { count: 'exact', head: true }).eq('is_cooperative_member', true),
+      supabase.from('family_members').select('*', { count: 'exact', head: true }).eq('is_household_leader', true),
+      supabase.from('family_members').select('*', { count: 'exact', head: true }).eq('is_voter', true),
+      supabase.from('dues_payments').select('amount').eq('status', 'completed').eq('payment_month', new Date().toISOString().slice(0, 7))
     ]);
-    if (householdsResult.error) throw householdsResult.error;
-    if (membersResult.error) throw membersResult.error;
+
+    if (householdsCount.error) throw householdsCount.error;
+    if (membersCount.error) throw membersCount.error;
+    if (activeMembersCount.error) throw activeMembersCount.error;
+    if (leadersCount.error) throw leadersCount.error;
+    if (votersCount.error) throw votersCount.error;
     if (paymentsResult.error) throw paymentsResult.error;
-    const households = householdsResult.data || [];
-    const members = membersResult.data || [];
-    const payments = paymentsResult.data || [];
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const monthlyCollection = payments.filter(p => p.payment_month === currentMonth).reduce((sum, p) => sum + Number(p.amount), 0);
+
+    const monthlyCollection = (paymentsResult.data || []).reduce((sum, p) => sum + Number(p.amount), 0);
+
     return {
-      totalHouseholds: households.length,
-      totalMembers: members.length,
-      activeMembers: members.filter(m => m.is_cooperative_member).length,
+      totalHouseholds: householdsCount.count || 0,
+      totalMembers: membersCount.count || 0,
+      activeMembers: activeMembersCount.count || 0,
+      totalLeaders: leadersCount.count || 0,
+      totalVoters: votersCount.count || 0,
       monthlyCollection,
       pendingDues: 0
     };

@@ -7,8 +7,11 @@ interface RecentPaymentsProps {
 }
 
 export function RecentPayments({ payments, members }: RecentPaymentsProps) {
-  const getMemberName = (memberId: string) => {
-    const member = members.find(m => m.id === memberId);
+  const getMemberName = (payment: DuesPayment) => {
+    if (payment.member) {
+      return `${payment.member.firstname} ${payment.member.lastname}`;
+    }
+    const member = members?.find(m => m.id === payment.member_id);
     if (!member) return 'Unknown Member';
     return `${member.firstname} ${member.lastname}`;
   };
@@ -26,7 +29,7 @@ export function RecentPayments({ payments, members }: RecentPaymentsProps) {
               <User className="w-5 h-5 text-teal-600" />
             </div>
             <div className="flex-1">
-              <p className="font-medium text-gray-900">{getMemberName(payment.member_id)}</p>
+              <p className="font-medium text-gray-900">{getMemberName(payment)}</p>
               <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />

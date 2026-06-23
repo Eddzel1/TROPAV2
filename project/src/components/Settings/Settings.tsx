@@ -4,6 +4,7 @@ import { UserTable } from './UserTable';
 import { UserForm } from './UserForm';
 import { LocationTable } from '../Locations/LocationTable';
 import { LocationForm } from '../Locations/LocationForm';
+import { OrganizationTab } from './OrganizationTab';
 import { User, Location, ContributionRate } from '../../types';
 import { Plus, Search, Shield, Users, MapPin, Building, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -106,6 +107,7 @@ export function Settings({
           <button onClick={() => setActiveTab('users')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'users' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}><Users className="w-4 h-4 inline mr-2" />User Management</button>
           <button onClick={() => setActiveTab('locations')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'locations' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}><MapPin className="w-4 h-4 inline mr-2" />Location Management</button>
           <button onClick={() => setActiveTab('rates')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'rates' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}><TrendingUp className="w-4 h-4 inline mr-2" />Contribution Rate</button>
+          <button onClick={() => setActiveTab('organization')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'organization' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}><Shield className="w-4 h-4 inline mr-2" />Organization Structure</button>
         </div>
 
         {/* ── User tab ── */}
@@ -250,6 +252,7 @@ export function Settings({
         {activeTab === 'locations' && (<div className="flex flex-col sm:flex-row gap-4 mb-6"><div className="flex-1 relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search locations..." value={locationSearchTerm} onChange={e => setLocationSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 w-full" /></div><select value={filterLGU} onChange={e => setFilterLGU(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"><option value="">All LGUs</option>{uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}</select><button onClick={() => setIsFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"><Plus className="w-4 h-4" />Add Location</button></div>)}
         {activeTab === 'users' && <UserTable users={filteredUsers} onEdit={handleEdit} onDelete={handleDelete} />}
         {activeTab === 'locations' && <LocationTable locations={filteredLocations} onEdit={handleEditLocation} onDelete={handleDeleteLocation} />}
+        {activeTab === 'organization' && <OrganizationTab locations={locations} />}
       </div>
       {activeTab === 'users' && <UserForm user={editingUser} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingUser(undefined); }} onSave={handleSave} />}
       {activeTab === 'locations' && <LocationForm location={editingLocation} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingLocation(undefined); }} onSave={handleSaveLocation} />}

@@ -6,10 +6,11 @@ import { HouseholdForm } from './HouseholdForm';
 import { Household, FamilyMember, Location } from '../../types';
 import { Search, Info, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { BulkAddMemberForm } from '../Members/BulkAddMemberForm';
+import { useHouseholdsPaginated, transformFamilyMember } from '../../hooks/useSupabase';
+import { supabaseHelpers } from '../../lib/supabase';
 
 interface HouseholdsProps {
   households: Household[];
-  members: FamilyMember[];
   locations: Location[];
   onCreateMember: (member: Omit<FamilyMember, 'id' | 'created_date' | 'updated_date'>) => Promise<FamilyMember>;
   onUpdateHousehold: (id: string, updates: Partial<Household>) => Promise<Household>;
@@ -18,54 +19,71 @@ interface HouseholdsProps {
   onMenuClick: () => void;
 }
 
-export function Households({ households, members, locations, onCreateMember, onDeleteHousehold, onDeleteMember, onUpdateHousehold, onMenuClick }: HouseholdsProps) {
+export function Households({ households, locations, onCreateMember, onDeleteHousehold, onDeleteMember, onUpdateHousehold, onMenuClick }: HouseholdsProps) {
   const [viewingHousehold, setViewingHousehold] = useState<Household | undefined>();
   const [editingHousehold, setEditingHousehold] = useState<Household | undefined>();
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [addMemberHousehold, setAddMemberHousehold] = useState<Household | undefined>();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterLGU, setFilterLGU] = useState('');
-  const [filterBarangay, setFilterBarangay] = useState('');
-  const [filterPuroks, setFilterPuroks] = useState<string[]>([]);
   const [purokSearch, setPurokSearch] = useState('');
   const [isPurokDropdownOpen, setIsPurokDropdownOpen] = useState(false);
-  const [sortField, setSortField] = useState<keyof Household>('household_name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkPurok, setBulkPurok] = useState('');
   const [isUpdatingBulk, setIsUpdatingBulk] = useState(false);
-  const itemsPerPage = 8;
 
-  const filteredHouseholds = households.filter(household => {
-    const matchesSearch = household.household_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      household.lgu.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      household.barangay.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLGU = !filterLGU || household.lgu === filterLGU;
-    const matchesBarangay = !filterBarangay || household.barangay === filterBarangay;
-    const matchesPurok = filterPuroks.length === 0 || filterPuroks.includes(household.purok);
-    return matchesSearch && matchesLGU && matchesBarangay && matchesPurok;
-  }).sort((a, b) => {
-    let aVal: any = a[sortField];
-    let bVal: any = b[sortField];
+  const [viewingHouseholdMembers, setViewingHouseholdMembers] = useState<FamilyMember[]>([]);
 
-    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+  useEffect(() => {
+    if (viewingHousehold) {
+      supabaseHelpers.getFamilyMembers(viewingHousehold.id)
+        .then(data => {
+          const transformed = data.map(transformFamilyMember);
+          setViewingHouseholdMembers(transformed);
+        })
+        .catch(err => {
+          console.error('Failed to fetch household members:', err);
+        });
+    } else {
+      setViewingHouseholdMembers([]);
+    }
+  }, [viewingHousehold]);
 
-    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
+  const handleDeleteMember = async (memberId: string) => {
+    try {
+      await onDeleteMember(memberId);
+      setViewingHouseholdMembers(prev => prev.filter(m => m.id !== memberId));
+      refetchPaginated();
+    } catch (error) {
+      console.error('Failed to delete member:', error);
+      alert('Failed to delete member. Please try again.');
+    }
+  };
 
-  const totalPages = Math.ceil(filteredHouseholds.length / itemsPerPage);
-  const paginatedHouseholds = filteredHouseholds.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const {
+    households: paginatedHouseholds,
+    count: filteredCount,
+    page: currentPage,
+    setPage: setCurrentPage,
+    limit: itemsPerPage,
+    searchTerm,
+    setSearchTerm,
+    filterLGU,
+    setFilterLGU,
+    filterBarangay,
+    setFilterBarangay,
+    filterPuroks,
+    setFilterPuroks,
+    sortField,
+    setSortField,
+    sortDirection,
+    setSortDirection,
+    refetch: refetchPaginated
+  } = useHouseholdsPaginated();
+
+  const totalPages = Math.ceil(filteredCount / itemsPerPage);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this household?')) {
-      try { await onDeleteHousehold(id); }
+      try { await onDeleteHousehold(id); refetchPaginated(); }
       catch (error) { alert('Failed to delete household. Please try again.'); }
     }
   };
@@ -99,10 +117,10 @@ export function Households({ households, members, locations, onCreateMember, onD
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const newIds = [...new Set([...selectedIds, ...filteredHouseholds.map(h => h.id)])];
+      const newIds = [...new Set([...selectedIds, ...paginatedHouseholds.map(h => h.id)])];
       setSelectedIds(newIds);
     } else {
-      setSelectedIds(prev => prev.filter(id => !filteredHouseholds.some(h => h.id === id)));
+      setSelectedIds(prev => prev.filter(id => !paginatedHouseholds.some(h => h.id === id)));
     }
   };
 
@@ -120,6 +138,7 @@ export function Households({ households, members, locations, onCreateMember, onD
       setBulkPurok('');
       setFilterPuroks([]);
       setPurokSearch('');
+      refetchPaginated();
       alert('Successfully updated purok for selected households!');
     } catch (error) {
       console.error('Failed to update bulk purok:', error);
@@ -140,7 +159,7 @@ export function Households({ households, members, locations, onCreateMember, onD
     .filter(h => (!filterLGU || h.lgu === filterLGU) && (!filterBarangay || h.barangay === filterBarangay))
     .map(h => h.purok)
     .filter((value, index, self) => value && self.indexOf(value) === index)
-    .sort();
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
   const filteredFormPuroks = formPuroks.filter(p => p.toLowerCase().includes(purokSearch.toLowerCase()));
 
@@ -291,7 +310,6 @@ export function Households({ households, members, locations, onCreateMember, onD
 
         <HouseholdTable
           households={paginatedHouseholds}
-          members={members}
           sortField={sortField}
           sortDirection={sortDirection}
           onSort={handleSort}
@@ -308,7 +326,7 @@ export function Households({ households, members, locations, onCreateMember, onD
         {totalPages > 1 && (
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredHouseholds.length)}</span> of <span className="font-medium">{filteredHouseholds.length}</span> households
+              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredCount)}</span> of <span className="font-medium">{filteredCount}</span> households
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -347,8 +365,8 @@ export function Households({ households, members, locations, onCreateMember, onD
         )}
       </div>
       {viewingHousehold && (
-        <HouseholdView household={viewingHousehold} members={members.filter(m => m.household_id === viewingHousehold.id)}
-          isOpen={!!viewingHousehold} onClose={() => setViewingHousehold(undefined)} onAddMember={() => { setViewingHousehold(undefined); handleAddMember(viewingHousehold); }} onEdit={() => { setViewingHousehold(undefined); setEditingHousehold(viewingHousehold); }} onDeleteMember={onDeleteMember} />
+        <HouseholdView household={viewingHousehold} members={viewingHouseholdMembers} locations={locations}
+          isOpen={!!viewingHousehold} onClose={() => setViewingHousehold(undefined)} onAddMember={() => { setViewingHousehold(undefined); handleAddMember(viewingHousehold); }} onEdit={() => { setViewingHousehold(undefined); setEditingHousehold(viewingHousehold); }} onDeleteMember={handleDeleteMember} />
       )}
 
       {addMemberHousehold && (

@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Header } from '../Layout/Header';
 import { PaymentTable } from './PaymentTable';
 import { PaymentForm } from './PaymentForm';
 import { UnpaidMembersTable } from './UnpaidMembersTable';
 import { DuesPayment, FamilyMember, Household, ContributionRate } from '../../types';
-import { Plus, Search, CreditCard, DollarSign, Calendar, AlertCircle } from 'lucide-react';
-import { getOutstandingMonths, getCurrentRate } from '../../lib/utils';
+import { Plus, Search, CreditCard, DollarSign, Calendar, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getCurrentRate } from '../../lib/utils';
+import { useDuesPaymentsPaginated, useDuesPaymentsMetadata, useFamilyMembers, useHouseholds, useDuesStats } from '../../hooks/useSupabase';
 
 interface DuesCollectionProps {
-  payments: DuesPayment[];
+  payments?: DuesPayment[];
   members: FamilyMember[];
   households: Household[];
   contributionRates: ContributionRate[];
@@ -20,63 +21,113 @@ interface DuesCollectionProps {
 
 type ViewMode = 'payments' | 'unpaid';
 
-export function DuesCollection({ payments, members, households, contributionRates, onCreatePayment, onUpdatePayment, onDeletePayment, onMenuClick }: DuesCollectionProps) {
+export function DuesCollection({ contributionRates, onCreatePayment, onUpdatePayment, onDeletePayment, onMenuClick }: Omit<DuesCollectionProps, 'members' | 'households' | 'payments'>) {
+  // Fetch data lazily – only when DuesCollection is mounted (user navigated to this page)
+  const { members } = useFamilyMembers();
+  const { households } = useHouseholds();
+  const { stats: duesStats, refetch: refetchDuesStats } = useDuesStats();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<DuesPayment | undefined>();
   const [viewMode, setViewMode] = useState<ViewMode>('payments');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterMethod, setFilterMethod] = useState('');
+
+  // Metadata hook for stats and unpaid check
+  const memberIds = useMemo(() => members.map(m => m.id), [members]);
+  const { metadata: paymentsMetadata, refetch: refetchMetadata } = useDuesPaymentsMetadata(memberIds);
+
+  // Paginated payments hook
+  const {
+    payments: paginatedPayments,
+    count: totalCount,
+    page,
+    setPage,
+    limit,
+    searchTerm,
+    setSearchTerm,
+    filterMonth,
+    setFilterMonth,
+    filterStatus,
+    setFilterStatus,
+    filterMethod,
+    setFilterMethod,
+    refetch: refetchPaginated
+  } = useDuesPaymentsPaginated(members, households);
+
   const [filterLGU, setFilterLGU] = useState('');
   const [filterBarangay, setFilterBarangay] = useState('');
   const [preSelectedMemberId, setPreSelectedMemberId] = useState<string>('');
 
-  const displayPayments = payments.filter(payment => {
-    const member = members.find(m => m.id === payment.member_id);
-    const household = households.find(h => h.id === payment.household_id);
-    const memberName = member ? `${member.firstname} ${member.lastname}`.toLowerCase() : '';
-    const householdName = household ? household.household_name.toLowerCase() : '';
-    const matchesSearch = memberName.includes(searchTerm.toLowerCase()) || householdName.includes(searchTerm.toLowerCase()) || payment.reference_number?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesMonth = !filterMonth || payment.payment_month === filterMonth;
-    const matchesStatus = !filterStatus || payment.status === filterStatus;
-    const matchesMethod = !filterMethod || payment.payment_method === filterMethod;
-    return matchesSearch && matchesMonth && matchesStatus && matchesMethod;
-  });
-
   const handleEdit = (payment: DuesPayment) => { setEditingPayment(payment); setPreSelectedMemberId(''); setIsFormOpen(true); };
+  
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this payment record?')) {
-      try { await onDeletePayment(id); } catch (error) { alert('Failed to delete payment. Please try again.'); }
+      try { 
+        await onDeletePayment(id);
+        refetchPaginated();
+        refetchMetadata();
+        refetchDuesStats();
+      } catch (error) { 
+        alert('Failed to delete payment. Please try again.'); 
+      }
     }
   };
+
   const handleSave = async (paymentData: Partial<DuesPayment>) => {
     try {
-      if (editingPayment) { await onUpdatePayment(editingPayment.id, paymentData); }
-      else { await onCreatePayment(paymentData as Omit<DuesPayment, 'id' | 'created_date' | 'updated_date'>); }
-      setEditingPayment(undefined); setPreSelectedMemberId('');
-    } catch (error) { alert('Failed to save payment.'); }
+      if (editingPayment) { 
+        await onUpdatePayment(editingPayment.id, paymentData); 
+      } else { 
+        await onCreatePayment(paymentData as Omit<DuesPayment, 'id' | 'created_date' | 'updated_date'>); 
+      }
+      setEditingPayment(undefined); 
+      setPreSelectedMemberId('');
+      refetchPaginated();
+      refetchMetadata();
+      refetchDuesStats();
+    } catch (error) { 
+      alert('Failed to save payment.'); 
+    }
   };
+
   const handlePayMember = (memberId: string) => { setPreSelectedMemberId(memberId); setEditingPayment(undefined); setIsFormOpen(true); };
 
-  const totalPayments = payments.length;
-  const completedPayments = payments.filter(p => p.status === 'completed');
-  const totalAmount = completedPayments.reduce((sum, p) => sum + p.amount, 0);
   const currentMonthISO = new Date().toISOString().slice(0, 7);
-  const monthlyCollection = completedPayments.filter(p => p.payment_month === currentMonthISO).reduce((sum, p) => sum + p.amount, 0);
-  const cooperativeMembers = members.filter(m => m.is_cooperative_member);
-  const outstandingMembers = cooperativeMembers.filter(member => {
-    const memberPayments = payments.filter(p => p.member_id === member.id);
-    const outstanding = getOutstandingMonths(member.membership_date, memberPayments, currentMonthISO);
-    return outstanding.length > 0;
-  }).length;
-  const uniqueMonths = [...new Set(payments.map(p => p.payment_month))].sort().reverse();
+  const totalPayments = duesStats.totalPayments;
+  const totalAmount = duesStats.totalCollection;
+  const monthlyCollection = duesStats.monthlyCollection;
+  const outstandingMembers = duesStats.outstandingMembers;
+
+  const uniqueMonths = [...new Set(paymentsMetadata.map(p => p.payment_month))].sort().reverse();
   if (!uniqueMonths.includes(currentMonthISO)) uniqueMonths.unshift(currentMonthISO);
-  const uniqueMethods = [...new Set(payments.map(p => p.payment_method))];
+  const uniqueMethods = [...new Set(paymentsMetadata.map(p => p.payment_method))];
   const uniqueLGUs = [...new Set(households.map(h => h.lgu).filter(Boolean))].sort();
   const uniqueBarangays = [...new Set(households.map(h => h.barangay).filter(Boolean))].sort();
 
   const currentRate = getCurrentRate(contributionRates);
+  const totalPages = Math.ceil(totalCount / limit);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (page <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (page >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = page - 1; i <= page + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
 
   return (
     <div className="flex-1 bg-gray-50 min-h-0 overflow-auto">
@@ -104,9 +155,55 @@ export function DuesCollection({ payments, members, households, contributionRate
             <button onClick={() => { setPreSelectedMemberId(''); setEditingPayment(undefined); setIsFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"><Plus className="w-4 h-4" />Record Payment</button>
           </div>
         </div>
-        {viewMode === 'payments' ? <PaymentTable payments={displayPayments} members={members} households={households} onEdit={handleEdit} onDelete={handleDelete} /> : <UnpaidMembersTable members={members} households={households} payments={payments} filterMonth={filterMonth} filterLGU={filterLGU} filterBarangay={filterBarangay} onPay={handlePayMember} />}
+        {viewMode === 'payments' ? (
+          <>
+            <PaymentTable payments={paginatedPayments} members={members} households={households} onEdit={handleEdit} onDelete={handleDelete} />
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to <span className="font-medium">{Math.min(page * limit, totalCount)}</span> of <span className="font-medium">{totalCount}</span> payments
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                    disabled={page === 1}
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers().map((pNum, index) => (
+                      <button
+                        key={`${pNum}-${index}`}
+                        onClick={() => typeof pNum === 'number' ? setPage(pNum) : null}
+                        disabled={pNum === '...'}
+                        className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${pNum === '...'
+                            ? 'cursor-default text-gray-500'
+                            : page === pNum
+                              ? 'bg-teal-600 text-white border border-teal-600'
+                              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                      >
+                        {pNum}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={page === totalPages}
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <UnpaidMembersTable key={`${filterMonth}-${filterLGU}-${filterBarangay}`} members={members} households={households} payments={paymentsMetadata as any} filterMonth={filterMonth} filterLGU={filterLGU} filterBarangay={filterBarangay} onPay={handlePayMember} />
+        )}
       </div>
-      <PaymentForm payment={editingPayment} members={members} households={households} payments={payments} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingPayment(undefined); setPreSelectedMemberId(''); }} onSave={handleSave} preSelectedMemberId={preSelectedMemberId} />
+      <PaymentForm payment={editingPayment} members={members} households={households} payments={paymentsMetadata as any} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingPayment(undefined); setPreSelectedMemberId(''); }} onSave={handleSave} preSelectedMemberId={preSelectedMemberId} />
     </div>
   );
 }

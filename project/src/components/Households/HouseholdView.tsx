@@ -1,11 +1,14 @@
 
-import { Household, FamilyMember } from '../../types';
+import { useState, useEffect } from 'react';
+import { Household, FamilyMember, Location, Officer } from '../../types';
 import { X, Home, MapPin, Users, UserCheck, Phone, Calendar, Shield, User, UserPlus, Edit, Trash2 } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
+import { supabaseHelpers } from '../../lib/supabase';
 
 interface HouseholdViewProps {
   household: Household;
   members: FamilyMember[];
+  locations: Location[];
   isOpen: boolean;
   onClose: () => void;
   onAddMember: () => void;
@@ -23,7 +26,45 @@ const sectorColors: Record<string, string> = {
   'General': 'bg-gray-100 text-gray-700'
 };
 
-export function HouseholdView({ household, members, isOpen, onClose, onAddMember, onEdit, onDeleteMember }: HouseholdViewProps) {
+export function HouseholdView({ household, members, locations, isOpen, onClose, onAddMember, onEdit, onDeleteMember }: HouseholdViewProps) {
+  const [barangayOfficers, setBarangayOfficers] = useState<Officer[]>([]);
+  const [purokOfficers, setPurokOfficers] = useState<Officer[]>([]);
+  const [loadingOfficers, setLoadingOfficers] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !household) return;
+
+    const loadOfficers = async () => {
+      setLoadingOfficers(true);
+      try {
+        const loc = locations.find(
+          l => l.lgu.toUpperCase() === household.lgu.toUpperCase() &&
+               l.barangay.toUpperCase() === household.barangay.toUpperCase()
+        );
+        if (loc) {
+          const brgyData = await supabaseHelpers.getOfficers(loc.id);
+          setBarangayOfficers(brgyData as any);
+
+          if (household.purok_id) {
+            const purokData = await supabaseHelpers.getOfficers(loc.id, household.purok_id);
+            setPurokOfficers(purokData as any);
+          } else {
+            setPurokOfficers([]);
+          }
+        } else {
+          setBarangayOfficers([]);
+          setPurokOfficers([]);
+        }
+      } catch (err) {
+        console.error('Error fetching officers for household view:', err);
+      } finally {
+        setLoadingOfficers(false);
+      }
+    };
+
+    loadOfficers();
+  }, [household, isOpen, locations]);
+
   if (!isOpen) return null;
   const householdLeader = members.find(m => m.is_household_leader);
   const cooperativeMembers = members.filter(m => m.is_cooperative_member);
@@ -68,6 +109,96 @@ export function HouseholdView({ household, members, isOpen, onClose, onAddMember
             <div className="bg-purple-50 rounded-lg p-4"><div className="flex items-center gap-3"><Shield className="w-8 h-8 text-purple-600" /><div><p className="text-2xl font-bold text-purple-900">{householdLeader ? 1 : 0}</p><p className="text-sm text-purple-600">Household Leader</p></div></div></div>
             <div className="bg-orange-50 rounded-lg p-4"><div className="flex items-center gap-3"><Calendar className="w-8 h-8 text-orange-600" /><div><p className="text-2xl font-bold text-orange-900">{voters.length}</p><p className="text-sm text-orange-600">Registered Voters</p></div></div></div>
           </div>
+
+          {/* Officers Section */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-teal-600" /> Organization &amp; Officers
+            </h3>
+            
+            {loadingOfficers ? (
+              <div className="text-center py-6 text-sm text-gray-500">Loading officer details...</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Barangay Federation (TOPA) */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-teal-700 bg-teal-50 px-2 py-1 rounded w-fit uppercase tracking-wider text-[11px]">
+                    TOPA Barangay Federation Officers
+                  </h4>
+                  <div className="space-y-3">
+                    {['President', 'Vice President', 'Secretary', 'Treasurer', 'Auditor'].map(pos => {
+                      const officer = barangayOfficers.find(o => o.position === pos);
+                      return (
+                        <div key={pos} className="flex items-center justify-between text-sm py-1 border-b border-gray-50">
+                          <span className="text-gray-500 font-medium">{pos}</span>
+                          {officer ? (
+                            <span className="font-bold text-gray-950">
+                              {officer.member?.firstname} {officer.member?.lastname}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic">Unassigned</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {/* Barangay Board Members */}
+                    <div className="pt-1">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Board Members</p>
+                      <div className="flex flex-wrap gap-2">
+                        {barangayOfficers.filter(o => o.position === 'Board Member').map(bm => (
+                          <span key={bm.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {bm.member?.firstname} {bm.member?.lastname}
+                          </span>
+                        ))}
+                        {barangayOfficers.filter(o => o.position === 'Board Member').length === 0 && (
+                          <span className="text-xs text-gray-400 italic">None assigned</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Purok (TROPA) */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-semibold text-teal-700 bg-teal-50 px-2 py-1 rounded w-fit uppercase tracking-wider text-[11px]">
+                    TROPA Purok Officers (Purok {household.purok})
+                  </h4>
+                  <div className="space-y-3">
+                    {['President', 'Vice President', 'Secretary', 'Treasurer', 'Auditor'].map(pos => {
+                      const officer = purokOfficers.find(o => o.position === pos);
+                      return (
+                        <div key={pos} className="flex items-center justify-between text-sm py-1 border-b border-gray-50">
+                          <span className="text-gray-500 font-medium">{pos}</span>
+                          {officer ? (
+                            <span className="font-bold text-gray-950">
+                              {officer.member?.firstname} {officer.member?.lastname}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic">Unassigned</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {/* Purok Board Members */}
+                    <div className="pt-1">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Board Members</p>
+                      <div className="flex flex-wrap gap-2">
+                        {purokOfficers.filter(o => o.position === 'Board Member').map(bm => (
+                          <span key={bm.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {bm.member?.firstname} {bm.member?.lastname}
+                          </span>
+                        ))}
+                        {purokOfficers.filter(o => o.position === 'Board Member').length === 0 && (
+                          <span className="text-xs text-gray-400 italic">None assigned</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {householdLeader && (
             <div className="bg-blue-50 rounded-lg p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2"><Shield className="w-5 h-5" />Household Leader</h3>

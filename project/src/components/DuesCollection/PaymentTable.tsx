@@ -14,8 +14,22 @@ const statusColors = { completed: 'bg-green-100 text-green-700', pending: 'bg-ye
 const methodColors = { 'Cash': 'bg-gray-100 text-gray-700', 'Bank Transfer': 'bg-blue-100 text-blue-700', 'GCash': 'bg-green-100 text-green-700', 'PayMaya': 'bg-purple-100 text-purple-700', 'Check': 'bg-orange-100 text-orange-700' };
 
 export function PaymentTable({ payments, members, households, onEdit, onDelete }: PaymentTableProps) {
-  const getMemberName = (memberId: string) => { const member = members.find(m => m.id === memberId); if (!member) return 'Unknown Member'; return `${member.firstname} ${member.lastname}`; };
-  const getHouseholdName = (householdId: string) => { const household = households.find(h => h.id === householdId); return household?.household_name || 'Unknown Household'; };
+  const getMemberName = (payment: DuesPayment) => {
+    if (payment.member) {
+      return `${payment.member.firstname} ${payment.member.lastname}`;
+    }
+    const member = members.find(m => m.id === payment.member_id);
+    if (!member) return 'Unknown Member';
+    return `${member.firstname} ${member.lastname}`;
+  };
+
+  const getHouseholdName = (payment: DuesPayment) => {
+    if (payment.household) {
+      return payment.household.household_name;
+    }
+    const household = households.find(h => h.id === payment.household_id);
+    return household?.household_name || 'Unknown Household';
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -34,7 +48,7 @@ export function PaymentTable({ payments, members, households, onEdit, onDelete }
           <tbody>
             {payments.map((payment) => (
               <tr key={payment.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                <td className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center"><User className="w-5 h-5 text-teal-600" /></div><div><p className="font-medium text-gray-900">{getMemberName(payment.member_id)}</p><p className="text-sm text-gray-500">{getHouseholdName(payment.household_id)}</p></div></div></td>
+                <td className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center"><User className="w-5 h-5 text-teal-600" /></div><div><p className="font-medium text-gray-900">{getMemberName(payment)}</p><p className="text-sm text-gray-500">{getHouseholdName(payment)}</p></div></div></td>
                 <td className="p-4"><p className="text-lg font-semibold text-gray-900">{formatCurrency(payment.amount)}</p><p className="text-sm text-gray-500">{payment.payment_month}{payment.months_covered && payment.months_covered > 1 && <span className="ml-1 text-teal-600 font-medium">({payment.months_covered} months)</span>}</p></td>
                 <td className="p-4"><div className="flex items-center gap-2 text-sm text-gray-600 mb-1"><Calendar className="w-4 h-4" /><span>{formatDate(payment.payment_date)}</span></div>{payment.reference_number && (<div className="flex items-center gap-2 text-sm text-gray-600"><Receipt className="w-4 h-4" /><span>{payment.reference_number}</span></div>)}</td>
                 <td className="p-4"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${methodColors[payment.payment_method]}`}>{payment.payment_method}</span></td>

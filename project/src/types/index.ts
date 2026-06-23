@@ -4,6 +4,8 @@ export interface Household {
   lgu: string;
   barangay: string;
   purok: string;
+  purok_id?: string;
+  household_leader_id?: string;
   total_members: number;
   active_members: number;
   status: 'active' | 'inactive';
@@ -24,6 +26,7 @@ export interface FamilyMember {
   lgu: string;
   barangay: string;
   purok: string;
+  purok_id?: string;
   sector: string;
 
   is_voter: boolean;
@@ -46,6 +49,7 @@ export interface FamilyMember {
   phic_no?: string;
   created_date: Date;
   updated_date: Date;
+  created_by?: string;
 }
 
 export interface DuesPayment {
@@ -66,6 +70,13 @@ export interface DuesPayment {
   created_by: string;
   created_date: Date;
   updated_date: Date;
+  member?: {
+    firstname: string;
+    lastname: string;
+  };
+  household?: {
+    household_name: string;
+  };
 }
 
 export interface User {
@@ -114,4 +125,29 @@ export interface ContributionRate {
   notes?: string;
   created_by: string;
   created_at: Date;
+}
+
+export interface Purok {
+  id: string;
+  location_id: string;
+  name: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface Officer {
+  id: string;
+  level: 'barangay' | 'purok';
+  location_id: string;
+  purok_id?: string;
+  position: 'President' | 'Vice President' | 'Secretary' | 'Treasurer' | 'Auditor' | 'Board Member';
+  member_id: string;
+  created_at: Date;
+  updated_at: Date;
+  member?: {
+    firstname: string;
+    lastname: string;
+    contact_number?: string;
+    profile_picture_url?: string;
+  };
 }

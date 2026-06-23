@@ -1,9 +1,8 @@
-import { Household, FamilyMember } from '../../types';
+import { Household } from '../../types';
 import { Trash2, Users, MapPin, Eye, UserPlus, Edit, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface HouseholdTableProps {
   households: Household[];
-  members: FamilyMember[];
   sortField: keyof Household;
   sortDirection: 'asc' | 'desc';
   onSort: (field: keyof Household) => void;
@@ -16,7 +15,7 @@ interface HouseholdTableProps {
   onSelectAll: (checked: boolean) => void;
 }
 
-export function HouseholdTable({ households, members, sortField, sortDirection, onSort, onView, onEdit, onDelete, onAddMember, selectedIds, onToggleSelection, onSelectAll }: HouseholdTableProps) {
+export function HouseholdTable({ households, sortField, sortDirection, onSort, onView, onEdit, onDelete, onAddMember, selectedIds, onToggleSelection, onSelectAll }: Omit<HouseholdTableProps, 'members'>) {
   const SortIcon = ({ field }: { field: keyof Household }) => {
     if (sortField !== field) return null;
     return sortDirection === 'asc' ? <ArrowUp className="w-4 h-4 ml-1 inline-block" /> : <ArrowDown className="w-4 h-4 ml-1 inline-block" />;
@@ -88,8 +87,8 @@ export function HouseholdTable({ households, members, sortField, sortDirection, 
                 </td>
                 <td className="p-4">
                   <div className="text-sm">
-                    <p className="font-medium text-gray-900">{members.filter(m => m.household_id === household.id).length} total</p>
-                    <p className="text-green-600">{members.filter(m => m.household_id === household.id && m.is_cooperative_member).length} active</p>
+                    <p className="font-medium text-gray-900">{household.total_members || 0} total</p>
+                    <p className="text-green-600">{household.active_members || 0} active</p>
                   </div>
                 </td>
                 <td className="p-4">
