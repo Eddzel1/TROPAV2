@@ -69,6 +69,8 @@ const emptyForm: Partial<FamilyMember> & { household_name?: string } = {
     purok_id: '',
     sector: 'General',
     is_voter: false,
+    voter_barangay: '',
+    voter_id: undefined,
     is_household_leader: false,
     is_cooperative_member: true,
     phic_member: false,
@@ -485,6 +487,8 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
             lgu: prev.lgu || voter.lgu || '',
             is_voter: true,
             listing_status: voter.status || '',
+            voter_barangay: voter.brgy || '',
+            voter_id: voter.id || undefined,
         }));
     };
 
@@ -1020,6 +1024,11 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                                 <option key={b} value={b}>{b}</option>
                                             ))}
                                         </select>
+                                        {formData.voter_barangay && formData.barangay && formData.voter_barangay !== formData.barangay && (
+                                            <p className="mt-1 text-xs text-orange-600 font-medium">
+                                                Note: Registered voter in Barangay <strong>{formData.voter_barangay}</strong>.
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Purok *</label>

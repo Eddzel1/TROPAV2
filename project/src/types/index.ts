@@ -30,6 +30,8 @@ export interface FamilyMember {
   sector: string;
 
   is_voter: boolean;
+  voter_barangay?: string;
+  voter_id?: number;
   contact_number?: string;
   is_household_leader: boolean;
   is_cooperative_member: boolean;

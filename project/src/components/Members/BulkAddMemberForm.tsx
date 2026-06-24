@@ -21,6 +21,8 @@ interface MemberRow {
     sector: FamilyMember['sector'];
     year_level?: string;
     is_voter?: boolean;
+    voter_barangay?: string;
+    voter_id?: number;
     phic_member?: boolean;
     phic_no?: string;
 }
@@ -38,6 +40,8 @@ const createEmptyRow = (householdLastname?: string): MemberRow => ({
     sector: 'General',
     year_level: '',
     is_voter: false,
+    voter_barangay: '',
+    voter_id: undefined,
     phic_member: false,
     phic_no: '',
 });
@@ -153,6 +157,8 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 lastname: voter.lastname || row.lastname,
                 middlename: voter.middlename || row.middlename,
                 is_voter: true,
+                voter_barangay: voter.brgy || '',
+                voter_id: voter.id || undefined,
             };
         }));
 
@@ -187,6 +193,8 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 sector: r.sector,
                 year_level: r.sector === 'Student' ? r.year_level : undefined,
                 is_voter: r.is_voter || false,
+                voter_barangay: r.voter_barangay || '',
+                voter_id: r.voter_id || undefined,
                 is_household_leader: false,
                 is_cooperative_member: true,
                 membership_date: r.membership_date ? new Date(r.membership_date) : new Date(),

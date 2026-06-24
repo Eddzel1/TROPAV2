@@ -39,6 +39,8 @@ export function transformFamilyMember(row: any): FamilyMember {
         purok_id: row.purok_id || undefined,
         sector: row.sector || '',
         is_voter: row.is_voter,
+        voter_barangay: row.voter_barangay || undefined,
+        voter_id: row.voter_id || undefined,
         contact_number: row.contact_number || undefined,
         is_household_leader: row.is_household_leader,
         is_cooperative_member: row.is_cooperative_member,

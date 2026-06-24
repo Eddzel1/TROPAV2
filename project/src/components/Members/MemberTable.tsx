@@ -26,7 +26,13 @@ export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
                       {member.is_household_leader && (<div className="flex items-center gap-1"><Shield className="w-3 h-3" /><span>Leader</span></div>)}
                       {member.age && (<div className="flex items-center gap-1"><Calendar className="w-3 h-3" /><span>{member.age}y</span></div>)}
                     </div>
-                    <div className="flex items-center gap-2 mt-2 text-sm text-gray-600"><MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{member.lgu}, {member.barangay}</span></div>
+                    <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">
+                        {member.lgu}, {member.barangay}
+                        {member.voter_barangay && member.voter_barangay !== member.barangay && ` (Voter Brgy: ${member.voter_barangay})`}
+                      </span>
+                    </div>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {member.sector?.split(',').map(s => s.trim()).filter(Boolean).map(sector => (
                         <span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>
@@ -55,7 +61,18 @@ export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
             {members.map((member) => (
               <tr key={member.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                 <td className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center overflow-hidden">{member.profile_picture_url ? <img src={member.profile_picture_url} alt={`${member.firstname} ${member.lastname}`} className="w-full h-full object-cover" /> : <User className="w-5 h-5 text-teal-600" />}</div><div><p className="font-medium text-gray-900">{member.firstname} {member.middlename && `${member.middlename} `}{member.lastname}{member.extension && ` ${member.extension}`}</p><div className="flex items-center gap-2 text-sm text-gray-500">{member.is_household_leader && <div className="flex items-center gap-1"><Shield className="w-3 h-3" /><span>Leader</span></div>}{member.age && <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /><span>{member.age} years old</span></div>}</div></div></div></td>
-                <td className="p-4"><div className="flex items-center gap-2 text-sm text-gray-600"><MapPin className="w-4 h-4" /><div><p>{member.lgu}</p><p className="text-xs">{member.barangay}, {member.purok}</p></div></div></td>
+                <td className="p-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <MapPin className="w-4 h-4" />
+                    <div>
+                      <p>{member.lgu}</p>
+                      <p className="text-xs">{member.barangay}, {member.purok}</p>
+                      {member.voter_barangay && member.voter_barangay !== member.barangay && (
+                        <p className="text-[10px] text-orange-600 font-medium">Voter Brgy: {member.voter_barangay}</p>
+                      )}
+                    </div>
+                  </div>
+                </td>
                 <td className="p-4"><div className="flex flex-wrap gap-1">{member.sector?.split(',').map(s => s.trim()).filter(Boolean).map(sector => (<span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>))}</div></td>
                 <td className="p-4"><div className="space-y-1"><div className="flex items-center gap-2"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${member.is_cooperative_member ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{member.is_cooperative_member ? 'Member' : 'Non-member'}</span></div>{member.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}</div></td>
                 <td className="p-4">{member.contact_number ? <div className="flex items-center gap-2 text-sm text-gray-600"><Phone className="w-4 h-4" />{member.contact_number}</div> : <span className="text-sm text-gray-400">No contact</span>}</td>

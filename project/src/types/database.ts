@@ -148,6 +148,8 @@ export type Database = {
           school: string | null
           sector: string | null
           updated_date: string | null
+          voter_barangay: string | null
+          voter_id: number | null
           year_level: string | null
         }
         Insert: {
@@ -181,6 +183,8 @@ export type Database = {
           school?: string | null
           sector?: string | null
           updated_date?: string | null
+          voter_barangay?: string | null
+          voter_id?: number | null
           year_level?: string | null
         }
         Update: {
@@ -214,6 +218,8 @@ export type Database = {
           school?: string | null
           sector?: string | null
           updated_date?: string | null
+          voter_barangay?: string | null
+          voter_id?: number | null
           year_level?: string | null
         }
         Relationships: [
@@ -229,6 +235,13 @@ export type Database = {
             columns: ["purok_id"]
             isOneToOne: false
             referencedRelation: "puroks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_members_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "voters"
             referencedColumns: ["id"]
           }
         ]

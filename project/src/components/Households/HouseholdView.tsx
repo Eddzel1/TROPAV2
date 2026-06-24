@@ -212,6 +212,11 @@ export function HouseholdView({ household, members, locations, isOpen, onClose, 
                     {householdLeader.contact_number && <div className="flex items-center gap-1"><Phone className="w-3 h-3" />{householdLeader.contact_number}</div>}
                     {householdLeader.age && <div className="flex items-center gap-1"><Calendar className="w-3 h-3" />{householdLeader.age} years old</div>}
                   </div>
+                  {householdLeader.voter_barangay && householdLeader.voter_barangay !== householdLeader.barangay && (
+                    <div className="text-xs text-orange-600 font-medium mt-1">
+                      Voter Barangay: {householdLeader.voter_barangay}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="flex flex-wrap justify-end gap-2">
@@ -247,6 +252,11 @@ export function HouseholdView({ household, members, locations, isOpen, onClose, 
                         {member.contact_number && <div className="flex items-center gap-1"><Phone className="w-3 h-3" />{member.contact_number}</div>}
                         {member.age && <div className="flex items-center gap-1"><Calendar className="w-3 h-3" />{member.age} years old</div>}
                       </div>
+                      {member.voter_barangay && member.voter_barangay !== member.barangay && (
+                        <div className="text-xs text-orange-600 font-medium mt-1">
+                          Voter Barangay: {member.voter_barangay}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex flex-wrap justify-end gap-2">
