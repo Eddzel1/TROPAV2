@@ -18,7 +18,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { households, updateHousehold, deleteHousehold } = useHouseholds();
+  const { households, updateHousehold, deleteHousehold, refetch: refetchHouseholds } = useHouseholds();
   const { users, createUser, updateUser, deleteUser } = useUsers();
   const { locations, createLocation, updateLocation, deleteLocation } = useLocations();
   const { profile: currentUser, loading: profileLoading } = useAuthProfile();
@@ -171,9 +171,14 @@ function App() {
             onUpdateUser={async (id, u) => updateUser(id, { ...u, last_login: u.last_login ? u.last_login.toISOString() : undefined } as any) as any}
             onDeleteUser={deleteUser}
             onCreateLocation={async (loc) => createLocation({ ...loc, created_date: new Date().toISOString(), updated_date: new Date().toISOString() } as any) as any}
-            onUpdateLocation={async (id, loc) => updateLocation(id, { ...loc, created_date: undefined } as any) as any}
+            onUpdateLocation={async (id, loc) => {
+              const res = await updateLocation(id, { ...loc, created_date: undefined } as any) as any;
+              refetchHouseholds();
+              return res;
+            }}
             onDeleteLocation={deleteLocation}
             onMenuClick={() => setSidebarOpen(true)}
+            onRefreshHouseholds={refetchHouseholds}
           />
         );
       default:

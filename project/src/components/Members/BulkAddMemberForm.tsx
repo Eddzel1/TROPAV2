@@ -184,6 +184,7 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 lgu: household.lgu,
                 barangay: household.barangay,
                 purok: household.purok,
+                purok_id: household.purok_id,
                 lastname: r.lastname,
                 firstname: r.firstname,
                 middlename: r.middlename,

@@ -7,6 +7,7 @@ import { MapPin, Users, User, Plus, Trash2, Edit2, Search, Check, X, Shield, Use
 
 interface OrganizationTabProps {
   locations: Location[];
+  onRefreshHouseholds?: () => void;
 }
 
 interface MemberCandidate {
@@ -19,7 +20,7 @@ interface MemberCandidate {
   purok?: string;
 }
 
-export function OrganizationTab({ locations }: OrganizationTabProps) {
+export function OrganizationTab({ locations, onRefreshHouseholds }: OrganizationTabProps) {
   const [selectedLgu, setSelectedLgu] = useState('');
   const [selectedBarangay, setSelectedBarangay] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -44,6 +45,9 @@ export function OrganizationTab({ locations }: OrganizationTabProps) {
   const [newPurokName, setNewPurokName] = useState('');
   const [editingPurokId, setEditingPurokId] = useState<string | null>(null);
   const [editingPurokName, setEditingPurokName] = useState('');
+
+  // Household count per purok
+  const [purokHouseholdCounts, setPurokHouseholdCounts] = useState<Record<string, number>>({});
 
   // Get LGUs and Barangays
   const lgus = Array.from(new Set(locations.map(l => l.lgu))).sort();
@@ -86,6 +90,32 @@ export function OrganizationTab({ locations }: OrganizationTabProps) {
     assignOfficer: assignPurokOfficer,
     removeOfficer: removePurokOfficer
   } = useOfficers(selectedLocation?.id, expandedPurokId || undefined);
+
+  // Fetch household counts per purok whenever the selected location changes
+  useEffect(() => {
+    if (!selectedLocation) {
+      setPurokHouseholdCounts({});
+      return;
+    }
+    const fetchCounts = async () => {
+      const { data, error } = await supabase
+        .from('households')
+        .select('purok_id')
+        .ilike('lgu', selectedLocation.lgu)
+        .ilike('barangay', selectedLocation.barangay)
+        .not('purok_id', 'is', null);
+      if (!error && data) {
+        const counts: Record<string, number> = {};
+        for (const row of data) {
+          if (row.purok_id) {
+            counts[row.purok_id] = (counts[row.purok_id] || 0) + 1;
+          }
+        }
+        setPurokHouseholdCounts(counts);
+      }
+    };
+    fetchCounts();
+  }, [selectedLocation]);
 
   // Load Candidates when the Assign Modal opens
   useEffect(() => {
@@ -176,6 +206,9 @@ export function OrganizationTab({ locations }: OrganizationTabProps) {
       await updatePurok(purokId, editingPurokName.trim());
       setEditingPurokId(null);
       setEditingPurokName('');
+      if (onRefreshHouseholds) {
+        onRefreshHouseholds();
+      }
     } catch (err: any) {
       if (err.code === '23505') {
         alert('A Purok with this name already exists in this Barangay.');
@@ -191,6 +224,9 @@ export function OrganizationTab({ locations }: OrganizationTabProps) {
         await deletePurok(purokId);
         if (expandedPurokId === purokId) {
           setExpandedPurokId(null);
+        }
+        if (onRefreshHouseholds) {
+          onRefreshHouseholds();
         }
       } catch (err) {
         alert('Failed to delete Purok.');
@@ -618,9 +654,21 @@ export function OrganizationTab({ locations }: OrganizationTabProps) {
                     <div className="flex items-center justify-between">
                       <button
                         onClick={() => setExpandedPurokId(expandedPurokId === purok.id ? null : purok.id)}
-                        className="flex-1 text-left font-semibold text-gray-800 text-sm hover:text-teal-600 truncate mr-2"
+                        className="flex-1 text-left flex items-center gap-2 min-w-0 mr-2"
                       >
-                        {purok.name}
+                        <span className="font-semibold text-gray-800 text-sm hover:text-teal-600 truncate">
+                          {purok.name}
+                        </span>
+                        <span
+                          className={`flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                            (purokHouseholdCounts[purok.id] || 0) === 0
+                              ? 'bg-red-100 text-red-600'
+                              : 'bg-teal-100 text-teal-700'
+                          }`}
+                          title={`${purokHouseholdCounts[purok.id] || 0} household(s)`}
+                        >
+                          {purokHouseholdCounts[purok.id] || 0} HH
+                        </span>
                       </button>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <button

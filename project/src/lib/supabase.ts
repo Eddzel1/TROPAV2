@@ -57,10 +57,11 @@ export const supabaseHelpers = {
     filterLGU?: string;
     filterBarangay?: string;
     filterPuroks?: string[];
+    filterPurokIds?: string[];
     sortField?: string;
     sortDirection?: 'asc' | 'desc';
   }) {
-    const { page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, sortField = 'created_date', sortDirection = 'desc' } = options;
+    const { page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, filterPurokIds, sortField = 'created_date', sortDirection = 'desc' } = options;
     const from = (page - 1) * limit;
     const to = Math.min(from + limit - 1, 499);
 
@@ -72,7 +73,14 @@ export const supabaseHelpers = {
 
     if (filterLGU) query = query.eq('lgu', filterLGU);
     if (filterBarangay) query = query.eq('barangay', filterBarangay);
-    if (filterPuroks && filterPuroks.length > 0) query = query.in('purok', filterPuroks);
+
+    // Prefer filtering by purok_id when IDs are available (avoids text-case mismatches)
+    if (filterPurokIds && filterPurokIds.length > 0) {
+      query = query.in('purok_id', filterPurokIds);
+    } else if (filterPuroks && filterPuroks.length > 0) {
+      // Fallback: filter by text purok name (for entries without purok_id)
+      query = query.in('purok', filterPuroks);
+    }
 
     if (searchTerm) {
       query = query.or(`household_name.ilike.%${searchTerm}%,lgu.ilike.%${searchTerm}%,barangay.ilike.%${searchTerm}%`);
@@ -97,14 +105,20 @@ export const supabaseHelpers = {
     if (error) throw error;
     if (!data) throw new Error(`Household with id ${id} not found`);
 
-    if (updates.purok !== undefined) {
+    if (updates.lgu !== undefined || updates.barangay !== undefined || updates.purok !== undefined || updates.purok_id !== undefined) {
+      const memberUpdates: any = {};
+      if (updates.lgu !== undefined) memberUpdates.lgu = updates.lgu;
+      if (updates.barangay !== undefined) memberUpdates.barangay = updates.barangay;
+      if (updates.purok !== undefined) memberUpdates.purok = updates.purok;
+      if (updates.purok_id !== undefined) memberUpdates.purok_id = updates.purok_id;
+
       const { error: memberError } = await supabase
         .from('family_members')
-        .update({ purok: updates.purok })
+        .update(memberUpdates)
         .eq('household_id', id);
         
       if (memberError) {
-        console.error('Failed to update purok for household members:', memberError);
+        console.error('Failed to update location for household members:', memberError);
       }
     }
 
@@ -452,9 +466,52 @@ export const supabaseHelpers = {
   },
 
   async updateLocation(id: string, updates: Database['public']['Tables']['locations']['Update']) {
+    // 1. Fetch old location to know the old names for propagation
+    const { data: oldLoc, error: fetchError } = await supabase
+      .from('locations')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (fetchError) throw fetchError;
+
+    // 2. Update the location
     const { data, error } = await supabase.from('locations').update(updates).eq('id', id).select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error(`Location with id ${id} not found`);
+
+    // 3. Propagate changes if LGU or Barangay changed
+    const lguChanged = updates.lgu !== undefined && updates.lgu !== oldLoc.lgu;
+    const barangayChanged = updates.barangay !== undefined && updates.barangay !== oldLoc.barangay;
+    
+    if (lguChanged || barangayChanged) {
+      const hhUpdates: any = {};
+      if (lguChanged) hhUpdates.lgu = updates.lgu;
+      if (barangayChanged) hhUpdates.barangay = updates.barangay;
+
+      // Update households
+      const { error: householdError } = await supabase
+        .from('households')
+        .update(hhUpdates)
+        .eq('lgu', oldLoc.lgu)
+        .eq('barangay', oldLoc.barangay);
+        
+      if (householdError) {
+        console.error('Failed to update location for households:', householdError);
+      }
+
+      // Update family members
+      const { error: memberError } = await supabase
+        .from('family_members')
+        .update(hhUpdates)
+        .eq('lgu', oldLoc.lgu)
+        .eq('barangay', oldLoc.barangay);
+        
+      if (memberError) {
+        console.error('Failed to update location for family members:', memberError);
+      }
+    }
+
     return data;
   },
 
@@ -479,14 +536,82 @@ export const supabaseHelpers = {
     return data;
   },
 
+  async ensurePurok(name: string, locationId: string): Promise<string> {
+    const trimmed = name.trim();
+    // 1. Search for existing purok under this location (case-insensitive)
+    const { data: existing, error: searchError } = await supabase
+      .from('puroks')
+      .select('id')
+      .eq('location_id', locationId)
+      .ilike('name', trimmed)
+      .maybeSingle();
+
+    if (searchError) throw searchError;
+    if (existing) return existing.id;
+
+    // 2. If it does not exist, insert it
+    const { data: inserted, error: insertError } = await supabase
+      .from('puroks')
+      .insert({ location_id: locationId, name: trimmed })
+      .select('id')
+      .single();
+
+    if (insertError) throw insertError;
+    return inserted.id;
+  },
+
   async updatePurok(id: string, updates: Database['public']['Tables']['puroks']['Update']) {
     const { data, error } = await supabase.from('puroks').update(updates).eq('id', id).select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error(`Purok with id ${id} not found`);
+
+    if (updates.name !== undefined) {
+      // Propagate the name change to households
+      const { error: householdError } = await supabase
+        .from('households')
+        .update({ purok: updates.name })
+        .eq('purok_id', id);
+        
+      if (householdError) {
+        console.error('Failed to update purok name for households:', householdError);
+      }
+
+      // Propagate the name change to family members
+      const { error: memberError } = await supabase
+        .from('family_members')
+        .update({ purok: updates.name })
+        .eq('purok_id', id);
+        
+      if (memberError) {
+        console.error('Failed to update purok name for family members:', memberError);
+      }
+    }
+
     return data;
   },
 
   async deletePurok(id: string) {
+    // 1. Update households to clear purok name and set purok_id to null
+    const { error: householdError } = await supabase
+      .from('households')
+      .update({ purok: '', purok_id: null })
+      .eq('purok_id', id);
+      
+    if (householdError) {
+      console.error('Failed to clear purok for households on delete:', householdError);
+    }
+
+    // 2. Update family members to clear purok name and set purok_id to null
+    const { error: memberError } = await supabase
+      .from('family_members')
+      .update({ purok: '', purok_id: null })
+      .eq('purok_id', id);
+      
+    if (memberError) {
+      console.error('Failed to clear purok for family members on delete:', memberError);
+    }
+
+    // 3. Delete from puroks table
     const { error } = await supabase.from('puroks').delete().eq('id', id);
     if (error) throw error;
   },

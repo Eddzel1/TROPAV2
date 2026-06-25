@@ -20,13 +20,14 @@ interface SettingsProps {
   onUpdateLocation: (id: string, updates: Partial<Location>) => Promise<Location>;
   onDeleteLocation: (id: string) => Promise<void>;
   onMenuClick: () => void;
+  onRefreshHouseholds?: () => void;
 }
 
 export function Settings({
   users, locations, contributionRates, onCreateContributionRate,
   onCreateUser, onUpdateUser, onDeleteUser,
   onCreateLocation, onUpdateLocation, onDeleteLocation,
-  onMenuClick
+  onMenuClick, onRefreshHouseholds
 }: SettingsProps) {
   const [activeTab, setActiveTab] = useState('users');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -252,7 +253,7 @@ export function Settings({
         {activeTab === 'locations' && (<div className="flex flex-col sm:flex-row gap-4 mb-6"><div className="flex-1 relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" /><input type="text" placeholder="Search locations..." value={locationSearchTerm} onChange={e => setLocationSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 w-full" /></div><select value={filterLGU} onChange={e => setFilterLGU(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"><option value="">All LGUs</option>{uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}</select><button onClick={() => setIsFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"><Plus className="w-4 h-4" />Add Location</button></div>)}
         {activeTab === 'users' && <UserTable users={filteredUsers} onEdit={handleEdit} onDelete={handleDelete} />}
         {activeTab === 'locations' && <LocationTable locations={filteredLocations} onEdit={handleEditLocation} onDelete={handleDeleteLocation} />}
-        {activeTab === 'organization' && <OrganizationTab locations={locations} />}
+        {activeTab === 'organization' && <OrganizationTab locations={locations} onRefreshHouseholds={onRefreshHouseholds} />}
       </div>
       {activeTab === 'users' && <UserForm user={editingUser} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingUser(undefined); }} onSave={handleSave} />}
       {activeTab === 'locations' && <LocationForm location={editingLocation} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingLocation(undefined); }} onSave={handleSaveLocation} />}

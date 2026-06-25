@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Header } from '../Layout/Header';
 import { HouseholdTable } from './HouseholdTable';
 import { HouseholdView } from './HouseholdView';
@@ -6,7 +6,7 @@ import { HouseholdForm } from './HouseholdForm';
 import { Household, FamilyMember, Location } from '../../types';
 import { Search, Info, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { BulkAddMemberForm } from '../Members/BulkAddMemberForm';
-import { useHouseholdsPaginated, transformFamilyMember } from '../../hooks/useSupabase';
+import { useHouseholdsPaginated, transformFamilyMember, usePuroks } from '../../hooks/useSupabase';
 import { supabaseHelpers } from '../../lib/supabase';
 
 interface HouseholdsProps {
@@ -72,6 +72,8 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
     setFilterBarangay,
     filterPuroks,
     setFilterPuroks,
+    filterPurokIds: _filterPurokIds,
+    setFilterPurokIds,
     sortField,
     setSortField,
     sortDirection,
@@ -107,8 +109,23 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
     }
   };
 
-  const handleToggleFilterPurok = (purok: string) => {
-    setFilterPuroks(prev => prev.includes(purok) ? prev.filter(p => p !== purok) : [...prev, purok]);
+  const handleToggleFilterPurok = (purokName: string) => {
+    // If this purok name has a known ID, toggle the ID-based filter
+    const purokObj = dbPuroks.find(p => p.name === purokName);
+    if (purokObj) {
+      setFilterPurokIds(prev =>
+        prev.includes(purokObj.id) ? prev.filter(id => id !== purokObj.id) : [...prev, purokObj.id]
+      );
+      // Keep filterPuroks in sync for UI checked state
+      setFilterPuroks(prev =>
+        prev.includes(purokName) ? prev.filter(p => p !== purokName) : [...prev, purokName]
+      );
+    } else {
+      // Fallback for puroks that only exist as text in household.purok
+      setFilterPuroks(prev =>
+        prev.includes(purokName) ? prev.filter(p => p !== purokName) : [...prev, purokName]
+      );
+    }
   };
 
   const handleToggleSelection = (id: string) => {
@@ -128,10 +145,29 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
     if (!bulkPurok.trim() || selectedIds.length === 0) return;
     setIsUpdatingBulk(true);
     try {
-      await Promise.all(selectedIds.map(id => {
-        const household = households.find(h => h.id === id);
+      await Promise.all(selectedIds.map(async (id) => {
+        const household = paginatedHouseholds.find(h => h.id === id);
         if (household) {
-          return onUpdateHousehold(id, { ...household, purok: bulkPurok });
+          // Resolve location case-insensitively and trimmed
+          const loc = locations.find(
+            l => l.lgu.trim().toUpperCase() === household.lgu.trim().toUpperCase() &&
+                 l.barangay.trim().toUpperCase() === household.barangay.trim().toUpperCase()
+          );
+          let purokId = household.purok_id;
+
+          if (loc) {
+            try {
+              purokId = await supabaseHelpers.ensurePurok(bulkPurok.trim(), loc.id);
+            } catch (err) {
+              console.error('Failed to ensure purok:', err);
+            }
+          }
+
+          // Pass only updated fields to avoid serializing React Date objects or triggering unexpected updates
+          return onUpdateHousehold(id, { 
+            purok: bulkPurok.trim(), 
+            purok_id: purokId || undefined 
+          });
         }
       }));
       setSelectedIds([]);
@@ -148,20 +184,58 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
     }
   };
 
-  const uniqueLGUs = [...new Set(households.map(h => h.lgu))].sort();
+  const uniqueLGUs = [...new Set(locations.map(l => l.lgu))].sort();
   const formBarangays = locations
     .filter(l => !filterLGU || l.lgu === filterLGU)
     .map(l => l.barangay)
     .filter((value, index, self) => self.indexOf(value) === index)
     .sort();
 
-  const formPuroks = households
-    .filter(h => (!filterLGU || h.lgu === filterLGU) && (!filterBarangay || h.barangay === filterBarangay))
-    .map(h => h.purok)
-    .filter((value, index, self) => value && self.indexOf(value) === index)
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  // Find location_id for selected LGU & Barangay
+  const selectedLocation = useMemo(() => {
+    return locations.find(l => l.lgu === filterLGU && l.barangay === filterBarangay);
+  }, [locations, filterLGU, filterBarangay]);
 
-  const filteredFormPuroks = formPuroks.filter(p => p.toLowerCase().includes(purokSearch.toLowerCase()));
+  const locationId = selectedLocation?.id;
+
+  // Fetch puroks from DB for the selected location
+  const { puroks: dbPuroks } = usePuroks(locationId);
+
+  const locationMap = useMemo(() => {
+    return new Map(locations.map(l => [l.id, l]));
+  }, [locations]);
+
+  // Get puroks from the database filtered by LGU/Barangay
+  const dbPurokNames = useMemo(() => {
+    let filtered = dbPuroks;
+    if (locationId) {
+      filtered = dbPuroks.filter(p => p.location_id === locationId);
+    } else if (filterLGU) {
+      filtered = dbPuroks.filter(p => {
+        const loc = locationMap.get(p.location_id);
+        return loc && loc.lgu === filterLGU;
+      });
+    }
+    return filtered.map(p => p.name);
+  }, [dbPuroks, locationId, filterLGU, locationMap]);
+
+  // Get puroks from the client households array (as fallback/union)
+  const householdPurokNames = useMemo(() => {
+    return households
+      .filter(h => (!filterLGU || h.lgu === filterLGU) && (!filterBarangay || h.barangay === filterBarangay))
+      .map(h => h.purok)
+      .filter((value, index, self) => value && self.indexOf(value) === index);
+  }, [households, filterLGU, filterBarangay]);
+
+  // Combine both lists and sort
+  const formPuroks = useMemo(() => {
+    return Array.from(new Set([...dbPurokNames, ...householdPurokNames]))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  }, [dbPurokNames, householdPurokNames]);
+
+  const filteredFormPuroks = useMemo(() => {
+    return formPuroks.filter(p => p.toLowerCase().includes(purokSearch.toLowerCase()));
+  }, [formPuroks, purokSearch]);
 
   const handleSort = (field: keyof Household) => {
     if (field === sortField) {
@@ -221,14 +295,14 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-full" />
           </div>
           <div className="flex flex-wrap gap-4">
-            <select value={filterLGU} onChange={(e) => { setFilterLGU(e.target.value); setFilterBarangay(''); setFilterPuroks([]); }}
+            <select value={filterLGU} onChange={(e) => { setFilterLGU(e.target.value); setFilterBarangay(''); setFilterPuroks([]); setFilterPurokIds([]); }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]">
               <option value="">All LGUs</option>
               {uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}
             </select>
             <select
               value={filterBarangay}
-              onChange={(e) => { setFilterBarangay(e.target.value); setFilterPuroks([]); }}
+              onChange={(e) => { setFilterBarangay(e.target.value); setFilterPuroks([]); setFilterPurokIds([]); }}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]"
             >
               <option value="">All Barangays</option>

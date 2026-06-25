@@ -937,6 +937,7 @@ export function useHouseholdsPaginated() {
     const [filterLGU, setFilterLGU] = useState('');
     const [filterBarangay, setFilterBarangay] = useState('');
     const [filterPuroks, setFilterPuroks] = useState<string[]>([]);
+    const [filterPurokIds, setFilterPurokIds] = useState<string[]>([]);
     const [sortField, setSortField] = useState<keyof Household>('household_name');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -950,6 +951,7 @@ export function useHouseholdsPaginated() {
                 filterLGU,
                 filterBarangay,
                 filterPuroks,
+                filterPurokIds,
                 sortField: sortField as string,
                 sortDirection
             });
@@ -968,7 +970,7 @@ export function useHouseholdsPaginated() {
 
     useEffect(() => {
         fetchHouseholds();
-    }, [page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, sortField, sortDirection]);
+    }, [page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, filterPurokIds, sortField, sortDirection]);
 
     return {
         households,
@@ -986,6 +988,8 @@ export function useHouseholdsPaginated() {
         setFilterBarangay,
         filterPuroks,
         setFilterPuroks,
+        filterPurokIds,
+        setFilterPurokIds,
         sortField,
         setSortField,
         sortDirection,
