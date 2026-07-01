@@ -41,13 +41,35 @@ export const supabaseHelpers = {
   },
 
   async getHouseholds() {
-    const { data, error } = await supabase
+    const pageSize = 1000;
+    const { count, error: countError } = await supabase
       .from('households')
-      .select('*')
-      .order('created_date', { ascending: false })
-      .limit(500);
-    if (error) throw error;
-    return data || [];
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) throw countError;
+    if (!count) return [];
+
+    const totalPages = Math.ceil(count / pageSize);
+    
+    // Batch into chunks of 10 concurrent requests to prevent browser/network bottlenecks
+    const allData: any[] = [];
+    for (let batchStart = 0; batchStart < totalPages; batchStart += 10) {
+      const batchEnd = Math.min(batchStart + 10, totalPages);
+      const promises = Array.from({ length: batchEnd - batchStart }).map(async (_, i) => {
+        const page = batchStart + i;
+        const { data, error } = await supabase
+          .from('households')
+          .select('*')
+          .order('created_date', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        if (error) throw error;
+        return data || [];
+      });
+      const results = await Promise.all(promises);
+      allData.push(...results.flat());
+    }
+
+    return allData;
   },
 
   async getHouseholdsPaginated(options: { 
@@ -131,18 +153,44 @@ export const supabaseHelpers = {
   },
 
   async getFamilyMembers(householdId?: string, hasCoordinatesOnly?: boolean) {
-    let q = supabase
+    const pageSize = 1000;
+    
+    let countQuery = supabase
       .from('family_members')
-      .select(`*, household:households!family_members_household_id_fkey(household_name, lgu, barangay, purok)`)
-      .order('created_date', { ascending: false });
-    if (householdId) q = q.eq('household_id', householdId);
-    if (hasCoordinatesOnly) {
-      q = q.not('latitude', 'is', null).not('longitude', 'is', null);
+      .select('*', { count: 'exact', head: true });
+      
+    if (householdId) countQuery = countQuery.eq('household_id', householdId);
+    if (hasCoordinatesOnly) countQuery = countQuery.not('latitude', 'is', null).not('longitude', 'is', null);
+
+    const { count, error: countError } = await countQuery;
+    if (countError) throw countError;
+    if (!count) return [];
+
+    const totalPages = Math.ceil(count / pageSize);
+    const allData: any[] = [];
+    
+    for (let batchStart = 0; batchStart < totalPages; batchStart += 10) {
+      const batchEnd = Math.min(batchStart + 10, totalPages);
+      const promises = Array.from({ length: batchEnd - batchStart }).map(async (_, i) => {
+        const page = batchStart + i;
+        let q = supabase
+          .from('family_members')
+          .select(`*, household:households!family_members_household_id_fkey(household_name, lgu, barangay, purok)`)
+          .order('created_date', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        
+        if (householdId) q = q.eq('household_id', householdId);
+        if (hasCoordinatesOnly) q = q.not('latitude', 'is', null).not('longitude', 'is', null);
+        
+        const { data, error } = await q;
+        if (error) throw error;
+        return data || [];
+      });
+      const results = await Promise.all(promises);
+      allData.push(...results.flat());
     }
-    q = q.limit(500);
-    const { data, error } = await q;
-    if (error) throw error;
-    return data || [];
+
+    return allData;
   },
 
   async getFamilyMembersPaginated(options: { 
@@ -324,13 +372,34 @@ export const supabaseHelpers = {
       return results.flatMap(r => { if (r.error) throw r.error; return r.data || []; });
     }
 
-    const { data, error } = await supabase
+    const pageSize = 1000;
+    const { count, error: countError } = await supabase
       .from('dues_payments')
-      .select('id, amount, status, payment_month, member_id, payment_for_month, payment_end_month, payment_method')
-      .order('payment_date', { ascending: false })
-      .limit(500);
-    if (error) throw error;
-    return data || [];
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) throw countError;
+    if (!count) return [];
+
+    const totalPages = Math.ceil(count / pageSize);
+    const allData: any[] = [];
+    
+    for (let batchStart = 0; batchStart < totalPages; batchStart += 10) {
+      const batchEnd = Math.min(batchStart + 10, totalPages);
+      const promises = Array.from({ length: batchEnd - batchStart }).map(async (_, i) => {
+        const page = batchStart + i;
+        const { data, error } = await supabase
+          .from('dues_payments')
+          .select('id, amount, status, payment_month, member_id, payment_for_month, payment_end_month, payment_method')
+          .order('payment_date', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        if (error) throw error;
+        return data || [];
+      });
+      const results = await Promise.all(promises);
+      allData.push(...results.flat());
+    }
+
+    return allData;
   },
 
   async getDuesCollectionStats() {

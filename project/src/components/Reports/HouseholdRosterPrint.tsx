@@ -41,9 +41,6 @@ function formatClassification(m: FamilyMember): string {
 }
 
 export function printHouseholdRoster({ households, members }: HouseholdRosterPrintProps) {
-  const printWindow = window.open('', '_blank', 'width=900,height=700');
-  if (!printWindow) return;
-
   const sorted = [...households].sort((a, b) =>
     `${a.lgu} ${a.barangay} ${a.household_name}`.localeCompare(
       `${b.lgu} ${b.barangay} ${b.household_name}`
@@ -107,85 +104,90 @@ export function printHouseholdRoster({ households, members }: HouseholdRosterPri
     day: 'numeric',
   });
 
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8" />
-      <title>Household Roster</title>
-      <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; color: #111827; padding: 24px; }
-        @media print {
-          body { padding: 12px; color: #000 !important; }
-          @page { margin: 1cm; }
-          h1, .subtitle, .summary-bar, .summary-bar span strong,
-          th, td, .legend-box, .legend-box * {
-            color: #000 !important;
-            background: #fff !important;
-            -webkit-print-color-adjust: exact;
-          }
-          .household-block > div:first-child {
-            background: #000 !important;
-            color: #fff !important;
-            -webkit-print-color-adjust: exact;
-          }
-          .summary-bar { border: 1px solid #999 !important; }
-          .legend-box { border: 1px solid #999 !important; }
-        }
-        h1 { font-size: 18px; color: #0d9488; }
-        .subtitle { font-size: 12px; color: #6b7280; margin-bottom: 18px; }
-        .summary-bar { display: flex; gap: 24px; background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 6px; padding: 10px 14px; margin-bottom: 20px; font-size: 12px; }
-        .summary-bar span strong { font-size: 15px; display: block; color: #0f766e; }
-        .legend-box {
-          margin-bottom: 14px;
-          border: 1px solid #e5e7eb;
-          border-radius: 4px;
-          padding: 5px 10px;
-          font-size: 10px;
-          color: #374151;
-          page-break-inside: avoid;
-          line-height: 1.6;
-        }
-        .legend-label { font-weight: 700; margin-right: 4px; }
-        .legend-sep { color: #9ca3af; margin: 0 6px; }
-        .legend-section { margin-right: 12px; }
-        .legend-title { font-weight: 700; font-size: 10px; margin-right: 4px; }
-      </style>
-    </head>
-    <body>
-      <h1>TROPA — Household Roster</h1>
-      <p class="subtitle">Printed on ${today} &nbsp;|&nbsp; ${households.length} household${households.length !== 1 ? 's' : ''} &nbsp;|&nbsp; ${members.length} member${members.length !== 1 ? 's' : ''}</p>
-      <div class="summary-bar">
-        <span><strong>${households.length}</strong>Households</span>
-        <span><strong>${members.length}</strong>Total Members</span>
-        <span><strong>${members.filter((m) => m.is_cooperative_member).length}</strong>TROPA Members</span>
-        <span><strong>${members.filter((m) => m.is_voter).length}</strong>Registered Voters</span>
-      </div>
-      <div class="legend-box">
-        <span class="legend-title">Classification:</span>
-        <span><span class="legend-label">V</span>=Voter</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">M</span>=Member</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">L</span>=Leader</span>
-        <span class="legend-sep">|</span>
-        <span class="legend-title">Sector:</span>
-        <span><span class="legend-label">G</span>=General</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">Y</span>=Youth</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">LGBTQ</span>=LGBTQ+</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">S</span>=Student</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">SC</span>=Senior Citizen</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">PWD</span>=PWD</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">SP</span>=Solo Parent</span><span class="legend-sep">·</span>
-        <span><span class="legend-label">IP</span>=Indigenous People</span>
-      </div>
-      ${householdRows}
-    </body>
-    </html>
-  `);
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Household Roster</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; color: #111827; padding: 24px; }
+    @media print {
+      body { padding: 12px; color: #000 !important; }
+      @page { margin: 1cm; }
+      h1, .subtitle, .summary-bar, .summary-bar span strong,
+      th, td, .legend-box, .legend-box * {
+        color: #000 !important;
+        background: #fff !important;
+        -webkit-print-color-adjust: exact;
+      }
+      .household-block > div:first-child {
+        background: #000 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+      }
+      .summary-bar { border: 1px solid #999 !important; }
+      .legend-box { border: 1px solid #999 !important; }
+    }
+    h1 { font-size: 18px; color: #0d9488; }
+    .subtitle { font-size: 12px; color: #6b7280; margin-bottom: 18px; }
+    .summary-bar { display: flex; gap: 24px; background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: 6px; padding: 10px 14px; margin-bottom: 20px; font-size: 12px; }
+    .summary-bar span strong { font-size: 15px; display: block; color: #0f766e; }
+    .legend-box {
+      margin-bottom: 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 10px;
+      color: #374151;
+      page-break-inside: avoid;
+      line-height: 1.6;
+    }
+    .legend-label { font-weight: 700; margin-right: 4px; }
+    .legend-sep { color: #9ca3af; margin: 0 6px; }
+    .legend-section { margin-right: 12px; }
+    .legend-title { font-weight: 700; font-size: 10px; margin-right: 4px; }
+  </style>
+</head>
+<body>
+  <h1>TROPA — Household Roster</h1>
+  <p class="subtitle">Printed on ${today} &nbsp;|&nbsp; ${households.length} household${households.length !== 1 ? 's' : ''} &nbsp;|&nbsp; ${members.length} member${members.length !== 1 ? 's' : ''}</p>
+  <div class="summary-bar">
+    <span><strong>${households.length}</strong>Households</span>
+    <span><strong>${members.length}</strong>Total Members</span>
+    <span><strong>${members.filter((m) => m.is_cooperative_member).length}</strong>TROPA Members</span>
+    <span><strong>${members.filter((m) => m.is_voter).length}</strong>Registered Voters</span>
+  </div>
+  <div class="legend-box">
+    <span class="legend-title">Classification:</span>
+    <span><span class="legend-label">V</span>=Voter</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">M</span>=Member</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">L</span>=Leader</span>
+    <span class="legend-sep">|</span>
+    <span class="legend-title">Sector:</span>
+    <span><span class="legend-label">G</span>=General</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">Y</span>=Youth</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">LGBTQ</span>=LGBTQ+</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">S</span>=Student</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">SC</span>=Senior Citizen</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">PWD</span>=PWD</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">SP</span>=Solo Parent</span><span class="legend-sep">·</span>
+    <span><span class="legend-label">IP</span>=Indigenous People</span>
+  </div>
+  ${householdRows}
+</body>
+</html>`;
 
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blobUrl = URL.createObjectURL(blob);
+  const printWindow = window.open(blobUrl, '_blank', 'width=900,height=700');
+  if (!printWindow) {
+    URL.revokeObjectURL(blobUrl);
+    return;
+  }
+  printWindow.onload = () => {
+    printWindow.focus();
     printWindow.print();
-  }, 400);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  };
 }

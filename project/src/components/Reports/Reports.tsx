@@ -20,9 +20,11 @@ interface ReportsProps {
 
 export function Reports({ locations, contributionRates, onMenuClick, households: householdsProp, members: membersProp, payments: paymentsProp }: ReportsProps) {
   // Fetch data lazily – only when Reports is mounted (user navigated to this page)
-  const { members: fetchedMembers } = useFamilyMembers();
-  const { payments: fetchedPayments } = useDuesPayments();
-  const { households: fetchedHouseholds } = useHouseholds();
+  const { members: fetchedMembers, loading: membersLoading } = useFamilyMembers();
+  const { payments: fetchedPayments, loading: paymentsLoading } = useDuesPayments();
+  const { households: fetchedHouseholds, loading: householdsLoading } = useHouseholds();
+  
+  const isLoading = membersLoading || paymentsLoading || householdsLoading;
 
   // Use fetched data; fall back to passed props if somehow both are available
   const members = fetchedMembers.length > 0 ? fetchedMembers : (membersProp || []);
@@ -68,8 +70,15 @@ export function Reports({ locations, contributionRates, onMenuClick, households:
   return (
     <div className="flex-1 bg-gray-50 min-h-0 overflow-auto">
       <Header title="Reports & Analytics" subtitle="Comprehensive data analysis and reporting" onMenuClick={onMenuClick} />
-      <div className="p-4 lg:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
+      
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mb-4"></div>
+          <p className="text-gray-500 font-medium animate-pulse">Loading all dashboard data (this may take a moment for large datasets)...</p>
+        </div>
+      ) : (
+        <div className="p-4 lg:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 lg:p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Total Households</p><p className="text-2xl font-bold text-gray-900">{summaryStats.totalHouseholds}</p></div><div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center"><Users className="w-6 h-6 text-white" /></div></div></div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 lg:p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">TROPA Members</p><p className="text-2xl font-bold text-gray-900">{summaryStats.cooperativeMembers}</p><p className="text-xs text-gray-500">{summaryStats.membershipRate.toFixed(1)}% membership rate</p></div><div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center"><Users className="w-6 h-6 text-white" /></div></div></div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 lg:p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p><p className="text-2xl font-bold text-gray-900">₱{summaryStats.totalRevenue.toLocaleString()}</p><p className="text-xs text-gray-500">{summaryStats.totalPayments} payments</p></div><div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center"><CreditCard className="w-6 h-6 text-white" /></div></div></div>
@@ -86,6 +95,7 @@ export function Reports({ locations, contributionRates, onMenuClick, households:
         </div>
         {renderActiveTab()}
       </div>
+      )}
     </div>
   );
 }

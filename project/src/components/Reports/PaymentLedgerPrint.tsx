@@ -20,8 +20,6 @@ export function printPaymentLedger({
   contributionRates,
   filterLabel = 'All',
 }: PaymentLedgerPrintProps) {
-  const printWindow = window.open('', '_blank', 'width=950,height=1200');
-  if (!printWindow) return;
 
   const now             = new Date();
   const currentYear     = now.getFullYear();
@@ -167,11 +165,16 @@ export function printPaymentLedger({
   }
 
   // Build all page bodies first (grand totals accumulate as side-effect)
-  const pageBodyRows = chunks.map(chunk =>
-    chunk.map(hh => buildHouseholdRows(hh)).join('')
-  );
+  let pageBodyRows: string[];
+  if (chunks.length === 0) {
+    pageBodyRows = [`<div style="text-align:center; padding: 50px; font-size: 14px;">No TROPA members found for the selected location.</div>`];
+  } else {
+    pageBodyRows = chunks.map(chunk =>
+      chunk.map(hh => buildHouseholdRows(hh)).join('')
+    );
+  }
 
-  const totalPages    = chunks.length;
+  const totalPages    = Math.max(1, chunks.length);
   const grandBalance  = grandExpected - grandPaid;
   const coopMemberCt  = members.filter(m => m.is_cooperative_member && coopHouseholds.some(h => h.id === m.household_id)).length;
 
@@ -227,7 +230,7 @@ export function printPaymentLedger({
       </div>`;
   }).join('');
 
-  printWindow.document.write(`
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -404,11 +407,17 @@ export function printPaymentLedger({
       ${pageTables}
     </body>
     </html>
-  `);
+  `;
 
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => { printWindow.print(); }, 400);
+  const blob1 = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blobUrl1 = URL.createObjectURL(blob1);
+  const printWindow = window.open(blobUrl1, '_blank', 'width=950,height=1200');
+  if (!printWindow) { URL.revokeObjectURL(blobUrl1); return; }
+  printWindow.onload = () => {
+    printWindow.focus();
+    printWindow.print();
+    setTimeout(() => URL.revokeObjectURL(blobUrl1), 60000);
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -425,8 +434,6 @@ export function printTreasurerSheet({
   members,
   filterLabel = 'All',
 }: Omit<PaymentLedgerPrintProps, 'payments' | 'contributionRates'>) {
-  const printWindow = window.open('', '_blank', 'width=950,height=1200');
-  if (!printWindow) return;
 
   const now             = new Date();
   const currentYear     = now.getFullYear();
@@ -523,25 +530,33 @@ export function printTreasurerSheet({
   }
   const totalPages = chunks.length;
 
-  const pageTables = chunks.map((chunk, pageIdx) => {
-    const isLast    = pageIdx === totalPages - 1;
-    const pageBreak = !isLast ? 'page-break-after:always;' : '';
-    const bodyRows  = chunk.map(hh => buildHouseholdRows(hh)).join('');
-
-    return `
-      <div style="${pageBreak}position:relative;">
-        <table>
-          ${theadHTML}
-          <tbody>${bodyRows}</tbody>
-        </table>
-        <p class="page-stamp">
-          ${filterLabel.toUpperCase()} &nbsp;|&nbsp; ${today.toUpperCase()} &nbsp;|&nbsp;
-          PAGE ${pageIdx + 1} / ${totalPages}
-        </p>
+  let pageTables = '';
+  if (chunks.length === 0) {
+    pageTables = `
+      <div style="text-align:center; padding: 50px; font-size: 14px;">
+        <h2>No TROPA members found for the selected location.</h2>
       </div>`;
-  }).join('');
+  } else {
+    pageTables = chunks.map((chunk, pageIdx) => {
+      const isLast    = pageIdx === totalPages - 1;
+      const pageBreak = !isLast ? 'page-break-after:always;' : '';
+      const bodyRows  = chunk.map(hh => buildHouseholdRows(hh)).join('');
 
-  printWindow.document.write(`
+      return `
+        <div style="${pageBreak}position:relative;">
+          <table>
+            ${theadHTML}
+            <tbody>${bodyRows}</tbody>
+          </table>
+          <p class="page-stamp">
+            ${filterLabel.toUpperCase()} &nbsp;|&nbsp; ${today.toUpperCase()} &nbsp;|&nbsp;
+            PAGE ${pageIdx + 1} / ${totalPages}
+          </p>
+        </div>`;
+    }).join('');
+  }
+
+  const html2 = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -649,9 +664,15 @@ export function printTreasurerSheet({
       ${pageTables}
     </body>
     </html>
-  `);
+  `;
 
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => { printWindow.print(); }, 400);
+  const blob2 = new Blob([html2], { type: 'text/html;charset=utf-8' });
+  const blobUrl2 = URL.createObjectURL(blob2);
+  const printWindow2 = window.open(blobUrl2, '_blank', 'width=950,height=1200');
+  if (!printWindow2) { URL.revokeObjectURL(blobUrl2); return; }
+  printWindow2.onload = () => {
+    printWindow2.focus();
+    printWindow2.print();
+    setTimeout(() => URL.revokeObjectURL(blobUrl2), 60000);
+  };
 }
