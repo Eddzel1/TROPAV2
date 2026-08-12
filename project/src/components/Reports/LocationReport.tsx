@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Household, FamilyMember, Location } from '../../types';
-import { MapPin, ChevronDown, ChevronRight, Copy } from 'lucide-react';
+import { MapPin, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface LocationReportProps {
     households: Household[];
@@ -46,8 +46,8 @@ export function LocationReport({ households, members }: LocationReportProps) {
 
         // Process Households
         households.forEach(h => {
-            const barangay = (h.barangay || 'Unknown').trim().toUpperCase();
-            const purok = (h.purok || 'Unknown').trim().toUpperCase();
+            const barangay = h.barangay || 'Unknown';
+            const purok = h.purok || 'Unknown';
             ensurePath(barangay, purok);
             
             stats[barangay].total.households += 1;
@@ -56,8 +56,8 @@ export function LocationReport({ households, members }: LocationReportProps) {
 
         // Process Members
         members.forEach(m => {
-            const barangay = (m.barangay || 'Unknown').trim().toUpperCase();
-            const purok = (m.purok || 'Unknown').trim().toUpperCase();
+            const barangay = m.barangay || 'Unknown';
+            const purok = m.purok || 'Unknown';
             ensurePath(barangay, purok);
 
             const bTotal = stats[barangay].total;
@@ -122,52 +122,13 @@ export function LocationReport({ households, members }: LocationReportProps) {
         );
     };
 
-    const handleCopyToClipboard = () => {
-        let tsv = "Barangay / Purok\tTotal HL\tTotal Members\tTotal Voters\tTotal Per Sector\tTotal Per Age Bracket\n";
-        
-        Object.entries(statsByBarangay)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .forEach(([barangay, data]) => {
-                const sectorStr = Object.entries(data.total.sectors).filter(([,c]) => c > 0).map(([k, c]) => `${k}: ${c}`).join(", ");
-                const ageStr = Object.entries(data.total.ageBrackets).filter(([,c]) => c > 0).map(([k, c]) => `${k}: ${c}`).join(", ");
-                
-                tsv += `${barangay}\t${data.total.households}\t${data.total.members}\t${data.total.voters}\t${sectorStr}\t${ageStr}\n`;
-                
-                Object.entries(data.puroks)
-                    .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
-                    .forEach(([purok, stat]) => {
-                        const pSectorStr = Object.entries(stat.sectors).filter(([,c]) => c > 0).map(([k, c]) => `${k}: ${c}`).join(", ");
-                        const pAgeStr = Object.entries(stat.ageBrackets).filter(([,c]) => c > 0).map(([k, c]) => `${k}: ${c}`).join(", ");
-                        
-                        // Add some indentation to purok names for visual hierarchy in Excel/Sheets
-                        tsv += `    ${purok}\t${stat.households}\t${stat.members}\t${stat.voters}\t${pSectorStr}\t${pAgeStr}\n`;
-                    });
-            });
-
-        navigator.clipboard.writeText(tsv).then(() => {
-            alert("Data copied to clipboard! You can now paste it into Google Sheets.");
-        }).catch(err => {
-            console.error('Failed to copy: ', err);
-            alert("Failed to copy data to clipboard.");
-        });
-    };
-
     return (
         <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 overflow-hidden flex flex-col">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-0">
-                        <MapPin className="w-5 h-5 text-teal-600" />
-                        Location Breakdown
-                    </h3>
-                    <button
-                        onClick={handleCopyToClipboard}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-teal-700 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors"
-                    >
-                        <Copy className="w-4 h-4" />
-                        Copy for Excel/Sheets
-                    </button>
-                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-teal-600" />
+                    Location Breakdown
+                </h3>
 
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 border-b border-gray-200">

@@ -52,7 +52,7 @@ interface MemberFormProps {
     locations: Location[];
     isOpen: boolean;
     onClose: () => void;
-    onSave: (memberData: Partial<FamilyMember>, extraMembers?: HouseholdMemberRow[]) => void;
+    onSave: (memberData: Partial<FamilyMember>, extraMembers?: HouseholdMemberRow[]) => Promise<void> | void;
     preSelectedHousehold?: Household;
 }
 
@@ -82,6 +82,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     const [formData, setFormData] = useState<Partial<FamilyMember> & { household_name?: string }>(emptyForm);
     const [puroks, setPuroks] = useState<Purok[]>([]);
     const [loadingPuroks, setLoadingPuroks] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // ── Voter search state ──
     const [voterLastName, setVoterLastName] = useState('');
@@ -290,7 +291,24 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     // ── Event handlers (plain functions, no hooks) ──
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSaving) return;
+
+        // Check if household already exists when creating a new one
+        if (isAddMode && formData.is_household_leader && formData.household_name) {
+            const exists = households.some(h => 
+                h.household_name.toLowerCase() === formData.household_name!.toLowerCase() &&
+                h.lgu === formData.lgu && 
+                h.barangay === formData.barangay
+            );
+            
+            if (exists) {
+                alert(`A household named "${formData.household_name}" already exists in ${formData.barangay}, ${formData.lgu}. Please search and select the existing household instead of creating a new one.`);
+                return;
+            }
+        }
+
         try {
+            setIsSaving(true);
             const dataToSave = { ...formData, is_cooperative_member: true };
             // Pass extra household member rows when leader is being added
             const extras = (isAddMode && formData.is_household_leader && householdMembers.length > 0)
@@ -320,6 +338,8 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
             }
         } catch (error) {
             console.error('Failed to save:', error);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -1263,19 +1283,21 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                 <button
                                     type="submit"
                                     onClick={() => setIsAddAnother(true)}
-                                    className="px-6 py-2 bg-blue-600 border border-transparent rounded-lg text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center gap-2 font-medium"
+                                    disabled={isSaving}
+                                    className="px-6 py-2 bg-blue-600 border border-transparent rounded-lg text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center gap-2 font-medium disabled:opacity-50"
                                 >
                                     <Save className="w-5 h-5" />
-                                    Save & Add Another
+                                    {isSaving ? 'Saving...' : 'Save & Add Another'}
                                 </button>
                             )}
                             <button
                                 type="submit"
                                 onClick={() => setIsAddAnother(false)}
-                                className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors flex items-center gap-2 font-medium"
+                                disabled={isSaving}
+                                className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors flex items-center gap-2 font-medium disabled:opacity-50"
                             >
                                 <Save className="w-5 h-5" />
-                                {member ? 'Update Member' : 'Save Member'}
+                                {isSaving ? 'Saving...' : (member ? 'Update Member' : 'Save Member')}
                             </button>
                         </div>
                     </form>
