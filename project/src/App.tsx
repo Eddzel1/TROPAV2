@@ -9,6 +9,7 @@ import { DuesCollection } from './components/DuesCollection/DuesCollection';
 import { Reports } from './components/Reports/Reports';
 import { Settings } from './components/Settings/Settings';
 import { TropaFinder } from './components/TropaFinder/TropaFinder';
+import { Logs } from './components/Logs/Logs';
 import { useHouseholds, useUsers, useLocations, useAuthProfile, useContributionRates } from './hooks/useSupabase';
 import { supabaseHelpers } from './lib/supabase';
 
@@ -55,14 +56,15 @@ function App() {
         'dues': ['dues_collection'],
         'reports': ['view_reports'],
         'tropafinder': ['tropa_finder'],
-        'settings': ['user_management']
+        'settings': ['user_management'],
+        'logs': ['user_management']
       };
 
       const requiredPerms = pagePermissionMap[currentPage] || [];
       const hasAccess = requiredPerms.some(p => perms.includes(p));
 
       if (!hasAccess) {
-        const pages = ['dashboard', 'households', 'members', 'dues', 'reports', 'tropafinder', 'settings'];
+        const pages = ['dashboard', 'households', 'members', 'dues', 'reports', 'tropafinder', 'settings', 'logs'];
         const firstAllowed = pages.find(page => {
           const reqs = pagePermissionMap[page] || [];
           return reqs.length === 0 || reqs.some(p => perms.includes(p)); // if no reqs, it's allowed
@@ -109,14 +111,22 @@ function App() {
             households={households}
             locations={locations}
             onCreateMember={async (member) => {
-              return await supabaseHelpers.createFamilyMember(member as any) as any;
+              const res = await supabaseHelpers.createFamilyMember(member as any) as any;
+              await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'MEMBER', entity_id: res.id, details: { firstname: member.firstname, lastname: member.lastname } });
+              return res;
             }}
             onUpdateHousehold={async (id, h) => {
-              return await updateHousehold(id, { ...h, created_date: h.created_date ? h.created_date.toISOString() : undefined } as any) as any;
+              const res = await updateHousehold(id, { ...h, created_date: h.created_date ? h.created_date.toISOString() : undefined } as any) as any;
+              await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'HOUSEHOLD', entity_id: id, details: { household_name: h.household_name } });
+              return res;
             }}
-            onDeleteHousehold={deleteHousehold}
+            onDeleteHousehold={async (id) => {
+              await deleteHousehold(id);
+              await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'HOUSEHOLD', entity_id: id });
+            }}
             onDeleteMember={async (id) => {
               await supabaseHelpers.deleteFamilyMember(id);
+              await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'MEMBER', entity_id: id });
             }}
             onMenuClick={() => setSidebarOpen(true)}
           />
@@ -133,13 +143,20 @@ function App() {
         return (
           <DuesCollection
             contributionRates={contributionRates}
-            onCreatePayment={async (p) =>
-              supabaseHelpers.createDuesPayment({ ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : new Date().toISOString() } as any) as any
-            }
-            onUpdatePayment={async (id, p) =>
-              supabaseHelpers.updateDuesPayment(id, { ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : undefined } as any) as any
-            }
-            onDeletePayment={(id) => supabaseHelpers.deleteDuesPayment(id)}
+            onCreatePayment={async (p) => {
+              const res = await supabaseHelpers.createDuesPayment({ ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : new Date().toISOString() } as any) as any;
+              await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'DUES_PAYMENT', entity_id: res.id, details: { amount: p.amount, payment_month: p.payment_month } });
+              return res;
+            }}
+            onUpdatePayment={async (id, p) => {
+              const res = await supabaseHelpers.updateDuesPayment(id, { ...p, payment_date: p.payment_date ? p.payment_date.toISOString() : undefined } as any) as any;
+              await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'DUES_PAYMENT', entity_id: id, details: { amount: p.amount, payment_month: p.payment_month } });
+              return res;
+            }}
+            onDeletePayment={async (id) => {
+              await supabaseHelpers.deleteDuesPayment(id);
+              await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'DUES_PAYMENT', entity_id: id });
+            }}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );
@@ -167,18 +184,43 @@ function App() {
             locations={locations}
             contributionRates={contributionRates}
             onCreateContributionRate={createContributionRate}
-            onCreateUser={async (u) => createUser({ ...u, last_login: u.last_login ? u.last_login.toISOString() : null } as any) as any}
-            onUpdateUser={async (id, u) => updateUser(id, { ...u, last_login: u.last_login ? u.last_login.toISOString() : undefined } as any) as any}
-            onDeleteUser={deleteUser}
-            onCreateLocation={async (loc) => createLocation({ ...loc, created_date: new Date().toISOString(), updated_date: new Date().toISOString() } as any) as any}
+            onCreateUser={async (u) => {
+              const res = await createUser({ ...u, last_login: u.last_login ? u.last_login.toISOString() : null } as any) as any;
+              await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'USER', entity_id: res?.id, details: { email: u.email } });
+              return res;
+            }}
+            onUpdateUser={async (id, u) => {
+              const res = await updateUser(id, { ...u, last_login: u.last_login ? u.last_login.toISOString() : undefined } as any) as any;
+              await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'USER', entity_id: id, details: { email: u.email } });
+              return res;
+            }}
+            onDeleteUser={async (id) => {
+              await deleteUser(id);
+              await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'USER', entity_id: id });
+            }}
+            onCreateLocation={async (loc) => {
+              const res = await createLocation({ ...loc, created_date: new Date().toISOString(), updated_date: new Date().toISOString() } as any) as any;
+              await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'LOCATION', entity_id: res?.id, details: { lgu: loc.lgu, barangay: loc.barangay } });
+              return res;
+            }}
             onUpdateLocation={async (id, loc) => {
               const res = await updateLocation(id, { ...loc, created_date: undefined } as any) as any;
+              await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'LOCATION', entity_id: id, details: { lgu: loc.lgu, barangay: loc.barangay } });
               refetchHouseholds();
               return res;
             }}
-            onDeleteLocation={deleteLocation}
+            onDeleteLocation={async (id) => {
+              await deleteLocation(id);
+              await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'LOCATION', entity_id: id });
+            }}
             onMenuClick={() => setSidebarOpen(true)}
             onRefreshHouseholds={refetchHouseholds}
+          />
+        );
+      case 'logs':
+        return (
+          <Logs
+            onMenuClick={() => setSidebarOpen(true)}
           />
         );
       default:

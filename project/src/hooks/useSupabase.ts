@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, supabaseHelpers } from '../lib/supabase';
 import { Database } from '../types/database';
-import { Household, FamilyMember, DuesPayment, User, Location, ContributionRate, Purok, Officer } from '../types';
+import { Household, FamilyMember, DuesPayment, User, Location, ContributionRate, Purok, Officer, ActivityLog } from '../types';
 
 type Tables = Database['public']['Tables'];
 
@@ -1232,4 +1232,48 @@ export function useOfficers(locationId?: string, purokId?: string) {
         removeOfficer,
         refetch: fetchOfficers
     };
-}
+}
+
+export function useActivityLogs() {
+    const [logs, setLogs] = useState<ActivityLog[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchLogs = async () => {
+        try {
+            setLoading(true);
+            const { data, error: sbError } = await (supabase as any)
+                .from('activity_logs')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100);
+            if (sbError) throw sbError;
+            
+            const transformed: ActivityLog[] = ((data as any[]) || []).map((r: any) => ({
+                id: r.id,
+                user_id: r.user_id,
+                user_name: r.user_name,
+                action: r.action,
+                entity_type: r.entity_type,
+                entity_id: r.entity_id,
+                details: r.details,
+                created_at: new Date(r.created_at)
+            }));
+            
+            setLogs(transformed);
+            setError(null);
+        } catch (err) {
+            console.error('Error fetching activity logs:', err);
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchLogs();
+    }, []);
+
+    return { logs, loading, error, refetch: fetchLogs };
+}
+

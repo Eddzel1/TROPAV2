@@ -789,5 +789,30 @@ export const supabaseHelpers = {
       monthlyCollection,
       pendingDues: 0
     };
+  },
+
+  async logActivity(log: { action: 'ADD' | 'EDIT' | 'DELETE', entity_type: string, entity_id?: string, details?: any }) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { data: userData } = await supabase.from('users').select('firstname, lastname').eq('email', session.user.email).single();
+      const user_name = userData ? `${userData.firstname} ${userData.lastname}` : (session.user.email || 'Unknown User');
+
+      const { error } = await supabase.from('activity_logs').insert({
+        user_id: session.user.id,
+        user_name,
+        action: log.action,
+        entity_type: log.entity_type,
+        entity_id: log.entity_id,
+        details: log.details || null
+      });
+
+      if (error) {
+        console.error('Failed to log activity:', error);
+      }
+    } catch (err) {
+      console.error('Exception logging activity:', err);
+    }
   }
 };

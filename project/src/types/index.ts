@@ -153,3 +153,14 @@ export interface Officer {
     profile_picture_url?: string;
   };
 }
+
+export interface ActivityLog {
+  id: string;
+  user_id?: string;
+  user_name: string;
+  action: 'ADD' | 'EDIT' | 'DELETE';
+  entity_type: 'HOUSEHOLD' | 'MEMBER' | 'USER' | 'LOCATION' | 'CONTRIBUTION_RATE' | 'DUES_PAYMENT';
+  entity_id?: string;
+  details?: any;
+  created_at: Date;
+}
