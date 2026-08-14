@@ -798,21 +798,52 @@ export const supabaseHelpers = {
       
       const { data: userData } = await supabase.from('users').select('firstname, lastname').eq('email', session.user.email || '').single();
       const user_name = userData ? `${userData.firstname} ${userData.lastname}` : (session.user.email || 'Unknown User');
-
+      
       const { error } = await supabase.from('activity_logs').insert({
         user_id: session.user.id,
         user_name,
         action: log.action,
         entity_type: log.entity_type,
         entity_id: log.entity_id,
-        details: log.details || null
+        details: log.details
       });
-
+      
       if (error) {
-        console.error('Failed to log activity:', error);
+        console.error('Error logging activity:', error);
       }
     } catch (err) {
-      console.error('Exception logging activity:', err);
+      console.error('Failed to log activity:', err);
     }
+  },
+
+  async getFormTracking() {
+    const { data, error } = await supabase
+      .from('form_tracking')
+      .select(`
+        *,
+        encoded_by_user:users!form_tracking_encoded_by_fkey(firstname, lastname),
+        released_by_user:users!form_tracking_returned_released_by_fkey(firstname, lastname)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async createFormTracking(form: any) {
+    const { data, error } = await supabase.from('form_tracking').insert(form).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async updateFormTracking(id: string, updates: any) {
+    const { data, error } = await supabase.from('form_tracking').update(updates).eq('id', id).select().maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteFormTracking(id: string) {
+    const { error } = await supabase.from('form_tracking').delete().eq('id', id);
+    if (error) throw error;
   }
 };

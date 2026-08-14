@@ -159,8 +159,23 @@ export interface ActivityLog {
   user_id?: string;
   user_name: string;
   action: 'ADD' | 'EDIT' | 'DELETE';
-  entity_type: 'HOUSEHOLD' | 'MEMBER' | 'USER' | 'LOCATION' | 'CONTRIBUTION_RATE' | 'DUES_PAYMENT';
+  entity_type: 'HOUSEHOLD' | 'MEMBER' | 'USER' | 'LOCATION' | 'CONTRIBUTION_RATE' | 'DUES_PAYMENT' | 'FORM_TRACKING';
   entity_id?: string;
   details?: any;
   created_at: Date;
+}
+
+export interface FormTracking {
+  id: string;
+  barangay: string;
+  purok: string;
+  number_of_forms: number;
+  submitted_by: string;
+  received_by: string;
+  encoded_by?: string;
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Returned';
+  returned_released_by?: string;
+  returned_received_by?: string;
+  created_at: Date;
+  updated_at: Date;
 }

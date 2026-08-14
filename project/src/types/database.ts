@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      form_tracking: {
+        Row: {
+          id: string
+          barangay: string
+          purok: string
+          number_of_forms: number
+          submitted_by: string
+          received_by: string
+          encoded_by: string | null
+          status: string
+          returned_released_by: string | null
+          returned_received_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          barangay: string
+          purok: string
+          number_of_forms?: number
+          submitted_by: string
+          received_by: string
+          encoded_by?: string | null
+          status?: string
+          returned_released_by?: string | null
+          returned_received_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          barangay?: string
+          purok?: string
+          number_of_forms?: number
+          submitted_by?: string
+          received_by?: string
+          encoded_by?: string | null
+          status?: string
+          returned_released_by?: string | null
+          returned_received_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_tracking_encoded_by_fkey"
+            columns: ["encoded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_tracking_returned_released_by_fkey"
+            columns: ["returned_released_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       activity_logs: {
         Row: {
           action: string

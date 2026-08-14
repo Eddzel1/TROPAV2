@@ -10,6 +10,7 @@ import { Reports } from './components/Reports/Reports';
 import { Settings } from './components/Settings/Settings';
 import { TropaFinder } from './components/TropaFinder/TropaFinder';
 import { Logs } from './components/Logs/Logs';
+import { FormTrackingPage } from './components/FormTracking/FormTracking';
 import { useHouseholds, useUsers, useLocations, useAuthProfile, useContributionRates } from './hooks/useSupabase';
 import { supabaseHelpers } from './lib/supabase';
 
@@ -55,6 +56,7 @@ function App() {
         'members': ['view_members', 'manage_members'],
         'dues': ['dues_collection'],
         'reports': ['view_reports'],
+        'form_tracking': ['user_management'],
         'tropafinder': ['tropa_finder'],
         'settings': ['user_management'],
         'logs': ['user_management']
@@ -64,7 +66,7 @@ function App() {
       const hasAccess = requiredPerms.some(p => perms.includes(p));
 
       if (!hasAccess) {
-        const pages = ['dashboard', 'households', 'members', 'dues', 'reports', 'tropafinder', 'settings', 'logs'];
+        const pages = ['dashboard', 'households', 'members', 'dues', 'reports', 'form_tracking', 'tropafinder', 'settings', 'logs'];
         const firstAllowed = pages.find(page => {
           const reqs = pagePermissionMap[page] || [];
           return reqs.length === 0 || reqs.some(p => perms.includes(p)); // if no reqs, it's allowed
@@ -168,6 +170,13 @@ function App() {
             payments={[]}
             locations={locations}
             contributionRates={contributionRates}
+            onMenuClick={() => setSidebarOpen(true)}
+          />
+        );
+      case 'form_tracking':
+        return (
+          <FormTrackingPage
+            locations={locations}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );

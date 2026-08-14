@@ -1,4 +1,4 @@
-import { LayoutDashboard, Home, Users, CreditCard, FileText, Settings, LogOut, X, Search, Activity } from 'lucide-react';
+import { LayoutDashboard, Home, Users, CreditCard, FileText, Settings, LogOut, X, Search, Activity, ClipboardList } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { User } from '../../types';
 
@@ -22,6 +22,7 @@ const menuItems = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'dues', label: 'Dues Collection', icon: CreditCard },
   { id: 'reports', label: 'Reports', icon: FileText },
+  { id: 'form_tracking', label: 'Form Tracking', icon: ClipboardList },
   { id: 'tropafinder', label: 'Tropa Finder', icon: Search },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'logs', label: 'Activity Logs', icon: Activity },
@@ -82,6 +83,7 @@ export function Sidebar({ currentPage, onPageChange, isOpen, onClose, onLogout, 
                   case 'members': return perms.includes('view_members') || perms.includes('manage_members');
                   case 'dues': return perms.includes('dues_collection');
                   case 'reports': return perms.includes('view_reports');
+                  case 'form_tracking': return perms.includes('user_management');
                   case 'tropafinder': return perms.includes('tropa_finder');
                   case 'settings': return perms.includes('user_management');
                   case 'logs': return perms.includes('user_management');

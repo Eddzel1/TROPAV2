@@ -131,8 +131,14 @@ export function useHouseholds() {
 
     const createHousehold = async (household: Omit<Tables['households']['Insert'], 'id' | 'created_date' | 'updated_date'>) => {
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const created_by = session?.user?.email || 'unknown';
+
             console.log('Creating new household:', household);
-            const newHousehold = await supabaseHelpers.createHousehold(household);
+            const newHousehold = await supabaseHelpers.createHousehold({
+                ...household,
+                created_by: household.created_by || created_by
+            });
             console.log('Created household:', newHousehold);
             // Transform the new household data
             const transformedHousehold = transformHousehold(newHousehold);
@@ -238,10 +244,14 @@ export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: bool
                 householdId = newHousehold.id;
             }
 
+            const { data: { session } } = await supabase.auth.getSession();
+            const created_by = session?.user?.email || 'unknown';
+
             // Insert member with household_id
             const memberToCreate = {
                 ...memberDataWithoutImage,
-                household_id: householdId
+                household_id: householdId,
+                created_by: memberDataWithoutImage.created_by || created_by
             };
             const finalMemberData = await supabaseHelpers.createFamilyMember(memberToCreate);
             console.log('Created member:', finalMemberData);
@@ -1275,5 +1285,74 @@ export function useActivityLogs() {
     }, []);
 
     return { logs, loading, error, refetch: fetchLogs };
+}
+
+export function useFormTracking() {
+    const [forms, setForms] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchForms = async () => {
+        try {
+            setLoading(true);
+            const data = await supabaseHelpers.getFormTracking();
+            setForms(data || []);
+            setError(null);
+        } catch (err) {
+            console.error('Error fetching form tracking data:', err);
+            setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const createForm = async (form: any) => {
+        try {
+            const newForm = await supabaseHelpers.createFormTracking(form);
+            setForms(prev => [newForm, ...prev]);
+            return newForm;
+        } catch (err) {
+            console.error('Error creating form tracking record:', err);
+            setError(err instanceof Error ? err.message : 'Failed to create record');
+            throw err;
+        }
+    };
+
+    const updateForm = async (id: string, updates: any) => {
+        try {
+            const updatedForm = await supabaseHelpers.updateFormTracking(id, updates);
+            setForms(prev => prev.map(f => f.id === id ? { ...f, ...updatedForm } : f));
+            return updatedForm;
+        } catch (err) {
+            console.error('Error updating form tracking record:', err);
+            setError(err instanceof Error ? err.message : 'Failed to update record');
+            throw err;
+        }
+    };
+
+    const deleteForm = async (id: string) => {
+        try {
+            await supabaseHelpers.deleteFormTracking(id);
+            setForms(prev => prev.filter(f => f.id !== id));
+        } catch (err) {
+            console.error('Error deleting form tracking record:', err);
+            setError(err instanceof Error ? err.message : 'Failed to delete record');
+            throw err;
+        }
+    };
+
+    useEffect(() => {
+        fetchForms();
+    }, []);
+
+    return {
+        forms,
+        loading,
+        error,
+        refetch: fetchForms,
+        createForm,
+        updateForm,
+        deleteForm
+    };
 }
 
