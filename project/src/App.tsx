@@ -113,7 +113,11 @@ function App() {
             households={households}
             locations={locations}
             onCreateMember={async (member) => {
-              const res = await supabaseHelpers.createFamilyMember(member as any) as any;
+              const payload = {
+                ...member,
+                created_by: currentUser?.email || 'unknown'
+              };
+              const res = await supabaseHelpers.createFamilyMember(payload as any) as any;
               await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'MEMBER', entity_id: res.id, details: { firstname: member.firstname, lastname: member.lastname } });
               return res;
             }}

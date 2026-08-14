@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { FormTracking, User, Location, Purok } from '../../types';
 import { supabaseHelpers } from '../../lib/supabase';
+import { useUsers } from '../../hooks/useSupabase';
 
 interface FormTrackingModalProps {
   formTracking?: FormTracking;
@@ -25,6 +26,7 @@ export function FormTrackingModal({
     barangay: '',
     submitted_by: '',
     received_by: '',
+    encoded_by: '',
     status: 'Pending',
     returned_received_by: ''
   });
@@ -32,6 +34,7 @@ export function FormTrackingModal({
   const [purokEntries, setPurokEntries] = useState([{ purok: '', number_of_forms: 0 }]);
   const [puroks, setPuroks] = useState<Purok[]>([]);
   const [loadingPuroks, setLoadingPuroks] = useState(false);
+  const { users } = useUsers();
 
   useEffect(() => {
     if (formTracking) {
@@ -42,6 +45,7 @@ export function FormTrackingModal({
         barangay: formTracking.barangay,
         submitted_by: formTracking.submitted_by,
         received_by: formTracking.received_by,
+        encoded_by: formTracking.encoded_by || '',
         status: formTracking.status,
         returned_received_by: formTracking.returned_received_by || ''
       });
@@ -52,6 +56,7 @@ export function FormTrackingModal({
         barangay: '',
         submitted_by: '',
         received_by: currentUser ? `${currentUser.firstname} ${currentUser.lastname}` : '',
+        encoded_by: '',
         status: 'Pending',
         returned_received_by: ''
       });
@@ -91,6 +96,8 @@ export function FormTrackingModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const encodedByStr = formData.encoded_by || null;
+
     if (formTracking) {
       const payload: any = {
         barangay: formData.barangay,
@@ -98,6 +105,7 @@ export function FormTrackingModal({
         number_of_forms: purokEntries[0].number_of_forms,
         submitted_by: formData.submitted_by,
         received_by: formData.received_by,
+        encoded_by: encodedByStr,
         status: formData.status
       };
 
@@ -118,6 +126,7 @@ export function FormTrackingModal({
           number_of_forms: entry.number_of_forms,
           submitted_by: formData.submitted_by,
           received_by: formData.received_by,
+          encoded_by: encodedByStr,
           status: formData.status
         };
 
@@ -281,6 +290,23 @@ export function FormTrackingModal({
                   />
                   <p className="mt-1 text-xs text-gray-500">Automatically tracked to current user.</p>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
+                <select
+                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md"
+                  value={formData.encoded_by}
+                  onChange={(e) => setFormData({ ...formData, encoded_by: e.target.value })}
+                >
+                  <option value="">Not Assigned</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.firstname} {u.lastname}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Select a user to assign this batch to.</p>
               </div>
 
               <div>

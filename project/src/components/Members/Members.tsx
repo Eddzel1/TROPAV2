@@ -6,7 +6,7 @@ import { MemberForm, HouseholdMemberRow } from './MemberForm';
 import { FamilyMember, Household, Location } from '../../types';
 import { Plus, Search, Users, UserCheck, Shield, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFamilyMembersPaginated, useDashboardStats } from '../../hooks/useSupabase';
-import { supabaseHelpers } from '../../lib/supabase';
+import { supabase, supabaseHelpers } from '../../lib/supabase';
 
 interface MembersProps {
   members: FamilyMember[];
@@ -85,8 +85,17 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
 
   const handleSave = async (memberData: Partial<FamilyMember>, extraMembers?: HouseholdMemberRow[]) => {
     try {
+      let created_by = 'unknown';
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) created_by = user.email;
+      } catch (e) {
+        console.error("Failed to fetch user email:", e);
+      }
+
       const payload = {
         ...memberData,
+        created_by,
         membership_date: (memberData as any).membership_date?.toISOString?.() ?? memberData.membership_date,
         birth_date: (memberData as any).birth_date?.toISOString?.() ?? memberData.birth_date
       };
@@ -103,13 +112,15 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
             barangay: memberDataWithoutImage.barangay,
             purok: memberDataWithoutImage.purok,
             purok_id: memberDataWithoutImage.purok_id || null,
-            status: 'active'
+            status: 'active',
+            created_by
           });
           householdId = newHousehold.id;
         }
         savedMember = await supabaseHelpers.createFamilyMember({
           ...memberDataWithoutImage,
-          household_id: householdId
+          household_id: householdId,
+          created_by
         } as any);
       }
 
@@ -140,6 +151,7 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
             membership_date: row.membership_date || membershipDateStr,
             phic_member: row.phic_member || false,
             phic_no: row.phic_no || '',
+            created_by
           }));
         // Create each extra member
         for (const row of memberRows) {

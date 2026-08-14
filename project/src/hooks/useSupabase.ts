@@ -131,8 +131,8 @@ export function useHouseholds() {
 
     const createHousehold = async (household: Omit<Tables['households']['Insert'], 'id' | 'created_date' | 'updated_date'>) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const created_by = session?.user?.email || 'unknown';
+            const { data: { user } } = await supabase.auth.getUser();
+            const created_by = user?.email || 'unknown';
 
             console.log('Creating new household:', household);
             const newHousehold = await supabaseHelpers.createHousehold({
@@ -244,8 +244,8 @@ export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: bool
                 householdId = newHousehold.id;
             }
 
-            const { data: { session } } = await supabase.auth.getSession();
-            const created_by = session?.user?.email || 'unknown';
+            const { data: { user } } = await supabase.auth.getUser();
+            const created_by = user?.email || 'unknown';
 
             // Insert member with household_id
             const memberToCreate = {
@@ -738,8 +738,8 @@ export function useContributionRates() {
 
     const createRate = async (amount: number, effectiveFrom: string, notes?: string): Promise<ContributionRate> => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const createdBy = session?.user?.email || 'unknown';
+            const { data: { user } } = await supabase.auth.getUser();
+            const createdBy = user?.email || 'unknown';
             const { data, error: sbError } = await (supabase as any)
                 .from('contribution_rates')
                 .insert({ amount, effective_from: effectiveFrom, notes: notes || null, created_by: createdBy })

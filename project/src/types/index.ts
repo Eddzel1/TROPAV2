@@ -176,6 +176,8 @@ export interface FormTracking {
   status: 'Pending' | 'In Progress' | 'Completed' | 'Returned';
   returned_released_by?: string;
   returned_received_by?: string;
+  encoded_by_user?: { firstname: string; lastname: string; };
+  released_by_user?: { firstname: string; lastname: string; };
   created_at: Date;
   updated_at: Date;
 }
