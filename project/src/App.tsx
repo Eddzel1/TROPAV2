@@ -11,10 +11,13 @@ import { Settings } from './components/Settings/Settings';
 import { TropaFinder } from './components/TropaFinder/TropaFinder';
 import { Logs } from './components/Logs/Logs';
 import { FormTrackingPage } from './components/FormTracking/FormTracking';
+import { PublicSearch } from './components/PublicSearch/PublicSearch';
 import { useHouseholds, useUsers, useLocations, useAuthProfile, useContributionRates } from './hooks/useSupabase';
 import { supabaseHelpers } from './lib/supabase';
 
 function App() {
+  const isPublicSearch = window.location.pathname === '/search';
+
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -82,6 +85,10 @@ function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
   };
+
+  if (isPublicSearch) {
+    return <PublicSearch />;
+  }
 
   if (authLoading || (isAuthenticated && profileLoading)) {
     return (
