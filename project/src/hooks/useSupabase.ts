@@ -758,6 +758,7 @@ export function useContributionRates() {
             setRates(prev => [...prev, transformed].sort(
                 (a, b) => a.effective_from.getTime() - b.effective_from.getTime()
             ));
+            await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'CONTRIBUTION_RATE', entity_id: transformed.id, details: { amount, effective_from: effectiveFrom } });
             return transformed;
         } catch (err) {
             console.error('Error creating contribution rate:', err);

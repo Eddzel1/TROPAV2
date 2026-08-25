@@ -119,6 +119,7 @@ export const supabaseHelpers = {
   async createHousehold(household: Omit<Database['public']['Tables']['households']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
     const { data, error } = await supabase.from('households').insert(household).select().single();
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'HOUSEHOLD', entity_id: data.id, details: { household_name: data.household_name } });
     return data;
   },
 
@@ -144,12 +145,14 @@ export const supabaseHelpers = {
       }
     }
 
+    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'HOUSEHOLD', entity_id: id, details: { household_name: data.household_name, ...updates } });
     return data;
   },
 
   async deleteHousehold(id: string) {
     const { error } = await supabase.from('households').delete().eq('id', id);
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'HOUSEHOLD', entity_id: id });
   },
 
   async getFamilyMembers(householdId?: string, hasCoordinatesOnly?: boolean) {
@@ -269,6 +272,7 @@ export const supabaseHelpers = {
   async createFamilyMember(member: Omit<Database['public']['Tables']['family_members']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
     const { data, error } = await supabase.from('family_members').insert(member).select().single();
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'MEMBER', entity_id: data.id, details: { firstname: data.firstname, lastname: data.lastname } });
     return data;
   },
 
@@ -276,12 +280,14 @@ export const supabaseHelpers = {
     const { data, error } = await supabase.from('family_members').update(updates).eq('id', id).select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error(`Family member with id ${id} not found`);
+    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'MEMBER', entity_id: id, details: { firstname: data.firstname, lastname: data.lastname, ...updates } });
     return data;
   },
 
   async deleteFamilyMember(id: string) {
     const { error } = await supabase.from('family_members').delete().eq('id', id);
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'MEMBER', entity_id: id });
   },
 
   async getDuesPayments(memberId?: string, householdId?: string, limit?: number, sinceMonth?: string) {
@@ -474,6 +480,7 @@ export const supabaseHelpers = {
   async createDuesPayment(payment: Omit<Database['public']['Tables']['dues_payments']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
     const { data, error } = await supabase.from('dues_payments').insert(payment).select().single();
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'DUES_PAYMENT', entity_id: data.id, details: { amount: data.amount, payment_month: data.payment_month } });
     return data;
   },
 
@@ -481,12 +488,14 @@ export const supabaseHelpers = {
     const { data, error } = await supabase.from('dues_payments').update(updates).eq('id', id).select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error(`Dues payment with id ${id} not found`);
+    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'DUES_PAYMENT', entity_id: id, details: { amount: data.amount, payment_month: data.payment_month, ...updates } });
     return data;
   },
 
   async deleteDuesPayment(id: string) {
     const { error } = await supabase.from('dues_payments').delete().eq('id', id);
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'DUES_PAYMENT', entity_id: id });
   },
 
   async getUsers() {
@@ -507,6 +516,7 @@ export const supabaseHelpers = {
     }
     const result = await response.json();
     if (!result.success) throw new Error(result.error || 'Failed to create user');
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'USER', entity_id: result.user?.id, details: { email: user.email } });
     return result.user;
   },
 
@@ -514,12 +524,14 @@ export const supabaseHelpers = {
     const { data, error } = await supabase.from('users').update(updates).eq('id', id).select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error(`User with id ${id} not found`);
+    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'USER', entity_id: id, details: { email: data.email, ...updates } });
     return data;
   },
 
   async deleteUser(id: string) {
     const { error } = await supabase.from('users').delete().eq('id', id);
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'USER', entity_id: id });
   },
 
   async getLocations() {
@@ -531,6 +543,7 @@ export const supabaseHelpers = {
   async createLocation(location: Omit<Database['public']['Tables']['locations']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
     const { data, error } = await supabase.from('locations').insert(location).select().single();
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'LOCATION', entity_id: data.id, details: { lgu: data.lgu, barangay: data.barangay } });
     return data;
   },
 
@@ -581,12 +594,14 @@ export const supabaseHelpers = {
       }
     }
 
+    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'LOCATION', entity_id: id, details: { lgu: data.lgu, barangay: data.barangay, ...updates } });
     return data;
   },
 
   async deleteLocation(id: string) {
     const { error } = await supabase.from('locations').delete().eq('id', id);
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'LOCATION', entity_id: id });
   },
 
   async getPuroks(locationId?: string) {
@@ -602,6 +617,7 @@ export const supabaseHelpers = {
   async createPurok(purok: Omit<Database['public']['Tables']['puroks']['Insert'], 'id' | 'created_at' | 'updated_at'>) {
     const { data, error } = await supabase.from('puroks').insert(purok).select().single();
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'PUROK', entity_id: data.id, details: { name: data.name } });
     return data;
   },
 
@@ -626,6 +642,7 @@ export const supabaseHelpers = {
       .single();
 
     if (insertError) throw insertError;
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'PUROK', entity_id: inserted.id, details: { name: trimmed } });
     return inserted.id;
   },
 
@@ -656,6 +673,7 @@ export const supabaseHelpers = {
       }
     }
 
+    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'PUROK', entity_id: id, details: { name: data.name, ...updates } });
     return data;
   },
 
@@ -683,6 +701,7 @@ export const supabaseHelpers = {
     // 3. Delete from puroks table
     const { error } = await supabase.from('puroks').delete().eq('id', id);
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'PUROK', entity_id: id });
   },
 
   async getOfficers(locationId: string, purokId?: string) {
@@ -713,12 +732,14 @@ export const supabaseHelpers = {
 
     const { data, error } = await supabase.from('officers').insert(officer).select().single();
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'OFFICER', entity_id: data.id, details: { position: data.position, member_id: data.member_id } });
     return data;
   },
 
   async removeOfficer(id: string) {
     const { error } = await supabase.from('officers').delete().eq('id', id);
     if (error) throw error;
+    await supabaseHelpers.logActivity({ action: 'DELETE', entity_type: 'OFFICER', entity_id: id });
   },
 
   async searchVoters(
