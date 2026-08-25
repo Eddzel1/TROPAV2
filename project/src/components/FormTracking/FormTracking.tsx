@@ -59,8 +59,9 @@ export function FormTrackingPage({ locations, onMenuClick }: FormTrackingProps) 
   };
 
   const getGroupStatus = (groupForms: FormTracking[]) => {
+    if (groupForms.some(f => f.status === 'Returned')) return 'Returned';
     if (groupForms.some(f => f.status === 'In Progress')) return 'In Progress';
-    if (groupForms.every(f => f.status === 'Completed')) return 'Completed';
+    if (groupForms.length > 0 && groupForms.every(f => f.status === 'Completed')) return 'Completed';
     return 'Pending';
   };
 

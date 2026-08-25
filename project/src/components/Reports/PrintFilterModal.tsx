@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Household, FamilyMember, DuesPayment, ContributionRate } from '../../types';
 import { X, Printer, Filter, Home, Users } from 'lucide-react';
 import { printHouseholdRoster } from './HouseholdRosterPrint';
@@ -19,6 +19,9 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
   const [selectedLGU,      setSelectedLGU]      = useState<string>('all');
   const [selectedBarangay, setSelectedBarangay] = useState<string>('all');
   const [selectedPurok,    setSelectedPurok]    = useState<string>('all');
+  const [specificHouseholdsEnabled, setSpecificHouseholdsEnabled] = useState(false);
+  const [selectedHouseholdIds, setSelectedHouseholdIds] = useState<Set<string>>(new Set());
+  const [householdSearchTerm, setHouseholdSearchTerm] = useState('');
 
   // Unique LGUs
   const lguOptions = useMemo(() => {
@@ -72,8 +75,8 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
     setSelectedPurok('all');
   };
 
-  // Filtered households
-  const filteredHouseholds = useMemo(() =>
+  // Filtered households by location
+  const locationFilteredHouseholds = useMemo(() =>
     households.filter((h) => {
       if (selectedLGU      !== 'all' && h.lgu      !== selectedLGU)      return false;
       if (selectedBarangay !== 'all' && h.barangay !== selectedBarangay) return false;
@@ -83,19 +86,30 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
     [households, selectedLGU, selectedBarangay, selectedPurok]
   );
 
+  useEffect(() => {
+    setSelectedHouseholdIds(new Set());
+    setHouseholdSearchTerm('');
+  }, [locationFilteredHouseholds]);
+
+  // Final households to use for counting and printing
+  const finalHouseholds = useMemo(() => {
+    if (!specificHouseholdsEnabled) return locationFilteredHouseholds;
+    return locationFilteredHouseholds.filter(h => selectedHouseholdIds.has(h.id));
+  }, [locationFilteredHouseholds, specificHouseholdsEnabled, selectedHouseholdIds]);
+
   const filteredMembers = useMemo(() =>
-    members.filter((m) => filteredHouseholds.some((h) => h.id === m.household_id)),
-    [members, filteredHouseholds]
+    members.filter((m) => finalHouseholds.some((h) => h.id === m.household_id)),
+    [members, finalHouseholds]
   );
 
   const coopCount = filteredMembers.filter((m) => m.is_cooperative_member).length;
 
   const handlePrint = () => {
     if (mode === 'roster') {
-      printHouseholdRoster({ households: filteredHouseholds, members: filteredMembers });
+      printHouseholdRoster({ households: finalHouseholds, members: filteredMembers });
     } else {
       printPaymentLedger({
-        households: filteredHouseholds,
+        households: finalHouseholds,
         members: filteredMembers,
         payments,
         contributionRates,
@@ -107,7 +121,7 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
 
   const handleTreasurerPrint = () => {
     printTreasurerSheet({
-      households: filteredHouseholds,
+      households: finalHouseholds,
       members: filteredMembers,
       filterLabel: buildFilterLabel(),
     });
@@ -207,10 +221,64 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
             </div>
           )}
 
+          {/* Specific Households Toggle */}
+          {mode === 'ledger' && locationFilteredHouseholds.length > 0 && (
+            <div className="mt-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={specificHouseholdsEnabled}
+                  onChange={(e) => setSpecificHouseholdsEnabled(e.target.checked)}
+                  className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 w-4 h-4"
+                />
+                Select Specific Households Only
+              </label>
+
+              {specificHouseholdsEnabled && (
+                <div className="mt-2 flex flex-col gap-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search household..."
+                      value={householdSearchTerm}
+                      onChange={(e) => setHouseholdSearchTerm(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50 space-y-1">
+                    {locationFilteredHouseholds
+                      .filter(h => h.household_name.toLowerCase().includes(householdSearchTerm.toLowerCase()))
+                      .map(h => (
+                      <label key={h.id} className="flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-100 p-1.5 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedHouseholdIds.has(h.id)}
+                          onChange={(e) => {
+                            const newSet = new Set(selectedHouseholdIds);
+                            if (e.target.checked) newSet.add(h.id);
+                            else newSet.delete(h.id);
+                            setSelectedHouseholdIds(newSet);
+                          }}
+                          className="rounded border-gray-300 text-teal-600 focus:ring-teal-500 w-4 h-4"
+                        />
+                        {h.household_name}
+                      </label>
+                    ))}
+                    {locationFilteredHouseholds.filter(h => h.household_name.toLowerCase().includes(householdSearchTerm.toLowerCase())).length === 0 && (
+                      <p className="text-xs text-gray-500 text-center py-2">
+                        {locationFilteredHouseholds.length === 0 ? "No households available in this location." : "No households match your search."}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Preview counts */}
-          <div className="bg-teal-50 border border-teal-100 rounded-lg p-3 grid grid-cols-3 gap-3 text-center mt-2">
+          <div className="bg-teal-50 border border-teal-100 rounded-lg p-3 grid grid-cols-3 gap-3 text-center mt-4">
             <div>
-              <p className="text-lg font-bold text-teal-700">{filteredHouseholds.length}</p>
+              <p className="text-lg font-bold text-teal-700">{finalHouseholds.length}</p>
               <p className="text-xs text-teal-600">Households</p>
             </div>
             <div>
@@ -223,7 +291,7 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
             </div>
           </div>
 
-          {filteredHouseholds.length === 0 && (
+          {finalHouseholds.length === 0 && (
             <p className="text-sm text-amber-600 text-center bg-amber-50 rounded-lg py-2">
               No data matches the selected filters.
             </p>
@@ -241,7 +309,7 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
           {mode === 'ledger' && (
             <button
               onClick={handleTreasurerPrint}
-              disabled={filteredHouseholds.length === 0}
+              disabled={finalHouseholds.length === 0}
               className="px-4 py-2 text-sm text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed font-medium rounded-lg transition-colors"
             >
               Treasurer Sheet
@@ -249,7 +317,7 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
           )}
           <button
             onClick={handlePrint}
-            disabled={filteredHouseholds.length === 0}
+            disabled={finalHouseholds.length === 0}
             className="flex items-center gap-2 px-5 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
           >
             <Printer className="w-4 h-4" />
