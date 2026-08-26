@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import { usePuroks, useOfficers } from '../../hooks/useSupabase';
 import { Location, Officer } from '../../types';
@@ -179,7 +180,7 @@ export function OrganizationTab({ locations, onRefreshHouseholds }: Organization
       setAssignTarget(null);
       setCandidateSearch('');
     } catch (err) {
-      alert('Failed to assign officer. Please try again.');
+      toast.error('Failed to assign officer. Please try again.');
       console.error(err);
     }
   };
@@ -193,9 +194,9 @@ export function OrganizationTab({ locations, onRefreshHouseholds }: Organization
       setNewPurokName('');
     } catch (err: any) {
       if (err.code === '23505') {
-        alert('A Purok with this name already exists in this Barangay.');
+        toast('A Purok with this name already exists in this Barangay.');
       } else {
-        alert('Failed to add Purok.');
+        toast.error('Failed to add Purok.');
       }
     }
   };
@@ -211,9 +212,9 @@ export function OrganizationTab({ locations, onRefreshHouseholds }: Organization
       }
     } catch (err: any) {
       if (err.code === '23505') {
-        alert('A Purok with this name already exists in this Barangay.');
+        toast('A Purok with this name already exists in this Barangay.');
       } else {
-        alert('Failed to rename Purok.');
+        toast.error('Failed to rename Purok.');
       }
     }
   };
@@ -229,7 +230,7 @@ export function OrganizationTab({ locations, onRefreshHouseholds }: Organization
           onRefreshHouseholds();
         }
       } catch (err) {
-        alert('Failed to delete Purok.');
+        toast.error('Failed to delete Purok.');
       }
     }
   };

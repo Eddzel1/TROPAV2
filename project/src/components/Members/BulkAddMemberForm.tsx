@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { FamilyMember, Household, Voter } from '../../types';
-import { X, Save, Plus, Trash2, Search, UserCheck } from 'lucide-react';
+import { X, Save, Plus, Trash2, Search, UserCheck, Info } from 'lucide-react';
 import { supabaseHelpers } from '../../lib/supabase';
 
 interface BulkAddMemberFormProps {
@@ -61,6 +62,7 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
 
     const [rows, setRows] = useState<MemberRow[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const isSavingRef = useRef(false);
 
     // Voter Search Modal State
     const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -74,6 +76,11 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
     const [voterLgu] = useState('VALENCIA CITY');
     const [voterBarangay] = useState('');
 
+    // Background match indicator state
+    const [rowMatches, setRowMatches] = useState<Record<string, Voter[]>>({});
+    const [skippedMatches, setSkippedMatches] = useState<Record<string, boolean>>({});
+    const debounceRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
     // Initialize with 3 empty rows when opened
     React.useEffect(() => {
         if (isOpen) {
@@ -82,8 +89,75 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 createEmptyRow(householdLastname),
                 createEmptyRow(householdLastname),
             ]);
+            setRowMatches({});
+            setSkippedMatches({});
+            debounceRefs.current = {};
         }
     }, [isOpen, householdLastname]);
+
+    // Background Match Effect per row
+    React.useEffect(() => {
+        if (!isOpen) return;
+
+        const currentIds = new Set(rows.map(r => r.id));
+        
+        rows.forEach(row => {
+            // If already a voter or skipped, clear match if it exists and skip
+            if (row.is_voter || skippedMatches[row.id]) {
+                if (rowMatches[row.id]) {
+                    setRowMatches(prev => { const n = { ...prev }; delete n[row.id]; return n; });
+                }
+                return;
+            }
+
+            const ln = (row.lastname || '').trim();
+            const fn = (row.firstname || '').trim();
+            const mn = (row.middlename || '').trim();
+
+            if (ln.length < 2 || fn.length < 2) {
+                if (rowMatches[row.id]) {
+                    setRowMatches(prev => { const n = { ...prev }; delete n[row.id]; return n; });
+                }
+                return;
+            }
+
+            // Always clear existing timeout for this row
+            if (debounceRefs.current[row.id]) {
+                clearTimeout(debounceRefs.current[row.id]);
+            }
+
+            debounceRefs.current[row.id] = setTimeout(async () => {
+                try {
+                    const results = await supabaseHelpers.searchVoters(ln, fn, mn, undefined, undefined);
+                    setRowMatches(prev => ({ ...prev, [row.id]: results as Voter[] }));
+                } catch (err) {
+                    console.error("Row match check error", err);
+                }
+            }, 600);
+        });
+
+        // Cleanup removed rows
+        Object.keys(debounceRefs.current).forEach(id => {
+            if (!currentIds.has(id)) {
+                clearTimeout(debounceRefs.current[id]);
+                delete debounceRefs.current[id];
+            }
+        });
+        
+        // Also cleanup states for removed rows
+        setRowMatches(prev => {
+            let changed = false;
+            const next = { ...prev };
+            Object.keys(next).forEach(id => {
+                if (!currentIds.has(id)) {
+                    delete next[id];
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+
+    }, [rows, isOpen, skippedMatches]);
 
     if (!isOpen || !household) return null;
 
@@ -109,6 +183,16 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 if (cleaned.length > 11) return row; // Don't allow > 11 digits
                 finalValue = formatContactNumber(value);
             }
+            
+            if (field === 'birthdate') {
+                let sector = row.sector;
+                if (value) {
+                    const age = Math.floor((Date.now() - new Date(value).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+                    if (age >= 60) sector = 'Senior Citizen';
+                    else if (sector === 'Senior Citizen' && age < 60) sector = 'General';
+                }
+                return { ...row, birthdate: value, sector };
+            }
 
             return { ...row, [field]: finalValue };
         }));
@@ -121,7 +205,7 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
         setVoterLastName(row?.lastname || '');
         setVoterFirstName(row?.firstname || '');
         setVoterMiddleName(row?.middlename || '');
-        setVoterResults([]);
+        setVoterResults(rowMatches[id] || []);
         setSearchModalOpen(true);
     };
 
@@ -168,13 +252,15 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSavingRef.current || isSaving) return;
+        isSavingRef.current = true;
         setIsSaving(true);
         try {
             // Filter out clearly empty rows (at least firstname and lastname required)
             const validRows = rows.filter(r => r.lastname.trim() !== '' && r.firstname.trim() !== '');
 
             if (validRows.length === 0) {
-                alert('Please fill in at least one member with a First Name and Last Name.');
+                toast('Please fill in at least one member with a First Name and Last Name.');
                 setIsSaving(false);
                 return;
             }
@@ -207,8 +293,9 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
             onClose();
         } catch (error) {
             console.error('Failed to save bulk members:', error);
-            alert('Failed to save some members. Please check console.');
+            toast.error('Failed to save some members. Please check console.');
         } finally {
+            isSavingRef.current = false;
             setIsSaving(false);
         }
     };
@@ -262,6 +349,42 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* Possible Match Banner */}
+                                    {rowMatches[row.id] && rowMatches[row.id].length > 0 && !row.is_voter && !skippedMatches[row.id] && (
+                                        <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="p-1.5 bg-orange-100 rounded-full shrink-0">
+                                                        <Info className="w-4 h-4 text-orange-600" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-sm font-bold text-orange-900 leading-tight">Possible voter match found!</h3>
+                                                        <p className="text-xs text-orange-800 mt-0.5">
+                                                            We found {rowMatches[row.id].length} record(s) matching "{row.firstname} {row.lastname}".
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSearchVoter(row.id)}
+                                                        className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm"
+                                                    >
+                                                        Review Matches
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSkippedMatches(prev => ({ ...prev, [row.id]: true }))}
+                                                        className="p-1.5 text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-md transition-colors"
+                                                        title="Dismiss"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Fields Grid */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">

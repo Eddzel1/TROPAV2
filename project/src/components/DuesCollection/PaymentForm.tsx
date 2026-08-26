@@ -33,6 +33,8 @@ export function PaymentForm({ payment, members, households, payments = [], isOpe
     status: payment?.status || 'completed',
   });
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = React.useRef(false);
 
   React.useEffect(() => {
     if (isOpen && preSelectedMemberId && !payment) {
@@ -93,19 +95,33 @@ export function PaymentForm({ payment, members, households, payments = [], isOpe
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    const monthsCovered = parseInt(formData.months_covered);
-    const startMonth = formData.payment_month;
-    const endMonth = calculateEndMonth(startMonth, monthsCovered);
-    const newPaymentMonths = generateMonthRange(startMonth, endMonth);
-    const existingPaymentMonths = new Set<string>();
-    payments.filter(p => p.member_id === formData.member_id && p.status === 'completed' && p.id !== payment?.id).forEach(p => {
-      if (p.payment_for_month && p.payment_end_month) { const months = generateMonthRange(p.payment_for_month, p.payment_end_month); months.forEach(m => existingPaymentMonths.add(m)); }
-    });
-    const duplicates = newPaymentMonths.filter(m => existingPaymentMonths.has(m));
-    if (duplicates.length > 0) { setError(`Payment for ${duplicates.map(m => formatMonthName(m)).join(', ')} already exists.`); return; }
-    const paymentData = { member_id: formData.member_id, household_id: formData.household_id, amount: parseFloat(formData.amount), months_covered: monthsCovered, payment_for_month: startMonth, payment_end_month: endMonth, payment_month: getPaymentPeriodDisplay(), payment_date: new Date(formData.payment_date), payment_method: formData.payment_method, reference_number: formData.reference_number || undefined, notes: formData.notes || undefined, status: formData.status, collected_by: 'current_user', created_by: 'current_user' };
-    onSave(paymentData); resetForm(); onClose();
+    if (isSavingRef.current || isSaving) return;
+    isSavingRef.current = true;
+    setIsSaving(true);
+    
+    try {
+      setError(null);
+      const monthsCovered = parseInt(formData.months_covered);
+      const startMonth = formData.payment_month;
+      const endMonth = calculateEndMonth(startMonth, monthsCovered);
+      const newPaymentMonths = generateMonthRange(startMonth, endMonth);
+      const existingPaymentMonths = new Set<string>();
+      payments.filter(p => p.member_id === formData.member_id && p.status === 'completed' && p.id !== payment?.id).forEach(p => {
+        if (p.payment_for_month && p.payment_end_month) { const months = generateMonthRange(p.payment_for_month, p.payment_end_month); months.forEach(m => existingPaymentMonths.add(m)); }
+      });
+      const duplicates = newPaymentMonths.filter(m => existingPaymentMonths.has(m));
+      if (duplicates.length > 0) { setError(`Payment for ${duplicates.map(m => formatMonthName(m)).join(', ')} already exists.`); return; }
+      const payload = { member_id: formData.member_id, household_id: formData.household_id, amount: parseFloat(formData.amount), months_covered: monthsCovered, payment_for_month: startMonth, payment_end_month: endMonth, payment_month: getPaymentPeriodDisplay(), payment_date: new Date(formData.payment_date), payment_method: formData.payment_method, reference_number: formData.reference_number || undefined, notes: formData.notes || undefined, status: formData.status, collected_by: 'current_user', created_by: 'current_user' };
+      onSave(payload);
+      if (!payment) resetForm();
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setError('An error occurred while checking for duplicate payments.');
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   const handleClose = () => { resetForm(); onClose(); };

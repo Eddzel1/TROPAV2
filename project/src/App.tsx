@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from './lib/supabase';
+import { Toaster } from 'react-hot-toast';
 import { LoginPage } from './components/Auth/LoginPage';
 import { Sidebar } from './components/Layout/Sidebar';
 import { Dashboard } from './components/Dashboard/Dashboard';
@@ -236,6 +237,7 @@ function App() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <Toaster position="top-right" />
       <Sidebar
         currentUser={currentUser}
         currentPage={currentPage}

@@ -1,4 +1,5 @@
 import React from 'react';
+import toast from 'react-hot-toast';
 import { Header } from '../Layout/Header';
 import { MemberTable } from './MemberTable';
 // TS server force refresh
@@ -79,11 +80,11 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this member? This action cannot be undone.')) {
       try { await supabaseHelpers.deleteFamilyMember(id); refetchPaginated(); }
-      catch (error) { alert('Failed to delete member. Please try again.'); }
+      catch (error) { toast.error('Failed to delete member. Please try again.'); }
     }
   };
 
-  const handleSave = async (memberData: Partial<FamilyMember>, extraMembers?: HouseholdMemberRow[]) => {
+  const handleSave = async (memberData: Partial<FamilyMember>, extraMembers?: HouseholdMemberRow[], isAddAnother?: boolean) => {
     try {
       let created_by = 'unknown';
       try {
@@ -160,14 +161,16 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
       }
 
       setEditingMember(undefined);
-      setIsFormOpen(false);
+      if (!isAddAnother) {
+        setIsFormOpen(false);
+      }
       refetchPaginated();
       const total = 1 + (extraMembers?.filter(r => r.firstname.trim() && r.lastname.trim()).length ?? 0);
-      alert(total > 1 ? `${total} members saved successfully!` : 'Member saved successfully!');
+      toast(total > 1 ? `${total} members saved successfully!` : 'Member saved successfully!');
     } catch (error: any) {
       console.error('Failed to save member:', error);
       const errorMsg = error?.message || error?.details || JSON.stringify(error) || 'Unknown error';
-      alert(`Failed to save member: ${errorMsg}`);
+      toast.error(`Failed to save member: ${errorMsg}`);
     }
   };
 

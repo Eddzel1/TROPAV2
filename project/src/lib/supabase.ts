@@ -82,8 +82,12 @@ export const supabaseHelpers = {
     filterPurokIds?: string[];
     sortField?: string;
     sortDirection?: 'asc' | 'desc';
+    searchBy?: 'household' | 'leader';
+    searchLastname?: string;
+    searchFirstname?: string;
+    searchMiddlename?: string;
   }) {
-    const { page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, filterPurokIds, sortField = 'created_date', sortDirection = 'desc' } = options;
+    const { page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, filterPurokIds, sortField = 'created_date', sortDirection = 'desc', searchLastname, searchFirstname, searchMiddlename } = options;
     const from = (page - 1) * limit;
     const to = Math.min(from + limit - 1, 499);
 
@@ -104,7 +108,37 @@ export const supabaseHelpers = {
       query = query.in('purok', filterPuroks);
     }
 
-    if (searchTerm) {
+    if (options.searchBy === 'leader' && (searchTerm || searchLastname || searchFirstname || searchMiddlename)) {
+      let leaderQuery = supabase
+        .from('family_members')
+        .select('household_id')
+        .eq('is_household_leader', true);
+        
+      if (searchLastname) {
+        leaderQuery = leaderQuery.ilike('lastname', `%${searchLastname}%`);
+      }
+      if (searchFirstname) {
+        leaderQuery = leaderQuery.ilike('firstname', `%${searchFirstname}%`);
+      }
+      if (searchMiddlename) {
+        leaderQuery = leaderQuery.ilike('middlename', `%${searchMiddlename}%`);
+      }
+      
+      // If no specific name fields provided but searchTerm is present, fallback to general search
+      if (!searchLastname && !searchFirstname && !searchMiddlename && searchTerm) {
+        leaderQuery = leaderQuery.or(`firstname.ilike.%${searchTerm}%,lastname.ilike.%${searchTerm}%,middlename.ilike.%${searchTerm}%`);
+      }
+
+      const { data: leaders } = await leaderQuery.limit(1000);
+        
+      const householdIds = leaders ? leaders.map(l => l.household_id).filter(Boolean) : [];
+      if (householdIds.length > 0) {
+        query = query.in('id', householdIds);
+      } else {
+        // If no matching leaders found, return empty results immediately
+        return { data: [], count: 0 };
+      }
+    } else if (searchTerm && options.searchBy !== 'leader') {
       query = query.or(`household_name.ilike.%${searchTerm}%,lgu.ilike.%${searchTerm}%,barangay.ilike.%${searchTerm}%`);
     }
 

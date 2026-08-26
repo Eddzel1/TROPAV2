@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Plus, Edit2, Trash2, Menu, FileText, CheckCircle, Clock, Undo2, ChevronDown, ChevronRight } from 'lucide-react';
 import { FormTrackingModal } from './FormTrackingModal';
 import { useFormTracking, useAuthProfile } from '../../hooks/useSupabase';
@@ -96,7 +97,7 @@ export function FormTrackingPage({ locations, onMenuClick }: FormTrackingProps) 
       setEditingForm(null);
     } catch (err) {
       console.error('Failed to save form tracking:', err);
-      alert('Failed to save form tracking record. Please try again.');
+      toast.error('Failed to save form tracking record. Please try again.');
     }
   };
 
@@ -106,7 +107,7 @@ export function FormTrackingPage({ locations, onMenuClick }: FormTrackingProps) 
         await deleteForm(id);
       } catch (err) {
         console.error('Failed to delete:', err);
-        alert('Failed to delete form tracking record.');
+        toast.error('Failed to delete form tracking record.');
       }
     }
   };

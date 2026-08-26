@@ -4,6 +4,7 @@ import { Household, FamilyMember, Location, Officer } from '../../types';
 import { X, Home, MapPin, Users, UserCheck, Phone, Calendar, Shield, User, UserPlus, Edit, Trash2 } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 import { supabaseHelpers } from '../../lib/supabase';
+import { useUsers } from '../../hooks/useSupabase';
 
 interface HouseholdViewProps {
   household: Household;
@@ -30,6 +31,7 @@ export function HouseholdView({ household, members, locations, isOpen, onClose, 
   const [barangayOfficers, setBarangayOfficers] = useState<Officer[]>([]);
   const [purokOfficers, setPurokOfficers] = useState<Officer[]>([]);
   const [loadingOfficers, setLoadingOfficers] = useState(false);
+  const { users } = useUsers();
 
   useEffect(() => {
     if (!isOpen || !household) return;
@@ -76,6 +78,9 @@ export function HouseholdView({ household, members, locations, isOpen, onClose, 
     }
   };
 
+  const creator = users.find(u => u.email === household.created_by);
+  const addedByText = creator ? `${creator.firstname} ${creator.lastname}`.toUpperCase() : household.created_by || 'Unknown';
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -101,6 +106,7 @@ export function HouseholdView({ household, members, locations, isOpen, onClose, 
                 <div className="flex items-center gap-2 text-gray-900"><MapPin className="w-4 h-4" /><span>{household.lgu}, {household.barangay}, {household.purok}</span></div>
               </div>
               <div><label className="block text-sm font-medium text-gray-600 mb-1">Created Date</label><p className="text-gray-900">{formatDate(household.created_date)}</p></div>
+              <div><label className="block text-sm font-medium text-gray-600 mb-1">Added By</label><p className="text-gray-900 truncate" title={household.created_by}>{addedByText}</p></div>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

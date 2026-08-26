@@ -1,4 +1,5 @@
 import { LayoutDashboard, Home, Users, CreditCard, FileText, Settings, LogOut, X, Search, Activity, ClipboardList } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import { User } from '../../types';
 
@@ -34,13 +35,13 @@ export function Sidebar({ currentPage, onPageChange, isOpen, onClose, onLogout, 
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Error signing out:', error);
-        alert('Failed to sign out. Please try again.');
+        toast.error('Failed to sign out. Please try again.');
       } else {
         onLogout();
       }
     } catch (err) {
       console.error('Unexpected error during logout:', err);
-      alert('An unexpected error occurred. Please try again.');
+      toast.error('An unexpected error occurred. Please try again.');
     }
   };
 

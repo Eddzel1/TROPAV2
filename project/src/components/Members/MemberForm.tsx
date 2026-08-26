@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { FamilyMember, Household, Location, Voter, Purok } from '../../types';
 import { X, Save, Search, UserCheck, Info, UserPlus, Trash2, Plus } from 'lucide-react';
 import { supabaseHelpers } from '../../lib/supabase';
@@ -52,7 +53,7 @@ interface MemberFormProps {
     locations: Location[];
     isOpen: boolean;
     onClose: () => void;
-    onSave: (memberData: Partial<FamilyMember>, extraMembers?: HouseholdMemberRow[]) => Promise<void> | void;
+    onSave: (memberData: Partial<FamilyMember>, extraMembers?: HouseholdMemberRow[], isAddAnother?: boolean) => Promise<void> | void;
     preSelectedHousehold?: Household;
 }
 
@@ -83,6 +84,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     const [puroks, setPuroks] = useState<Purok[]>([]);
     const [loadingPuroks, setLoadingPuroks] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const isSavingRef = useRef(false);
 
     // ── Voter search state ──
     const [voterLastName, setVoterLastName] = useState('');
@@ -112,6 +114,11 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
 
     // ── Inline Household Members (shown when is_household_leader = true in add-mode) ──
     const [householdMembers, setHouseholdMembers] = useState<HouseholdMemberRow[]>([]);
+    
+    // Background match indicator state for inline household members
+    const [rowMatches, setRowMatches] = useState<Record<string, Voter[]>>({});
+    const [skippedMatches, setSkippedMatches] = useState<Record<string, boolean>>({});
+    const debounceRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
     // ── Household Search State ──
     const [householdSearch, setHouseholdSearch] = useState('');
@@ -174,7 +181,71 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         setVoterBarangay('');
         setPossibleMatches([]);
         setHouseholdMembers([]);
+        setRowMatches({});
+        setSkippedMatches({});
     }, [member, isOpen]);
+
+    // Background Match Effect per inline row
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const currentIds = new Set(householdMembers.map(r => r.id));
+        
+        householdMembers.forEach(row => {
+            if (row.is_voter || skippedMatches[row.id]) {
+                if (rowMatches[row.id]) {
+                    setRowMatches(prev => { const n = { ...prev }; delete n[row.id]; return n; });
+                }
+                return;
+            }
+
+            const ln = (row.lastname || '').trim();
+            const fn = (row.firstname || '').trim();
+            const mn = (row.middlename || '').trim();
+
+            if (ln.length < 2 || fn.length < 2) {
+                if (rowMatches[row.id]) {
+                    setRowMatches(prev => { const n = { ...prev }; delete n[row.id]; return n; });
+                }
+                return;
+            }
+
+            if (debounceRefs.current[row.id]) {
+                clearTimeout(debounceRefs.current[row.id]);
+            }
+
+            debounceRefs.current[row.id] = setTimeout(async () => {
+                try {
+                    const results = await supabaseHelpers.searchVoters(ln, fn, mn, undefined, undefined);
+                    setRowMatches(prev => ({ ...prev, [row.id]: results as Voter[] }));
+                } catch (err) {
+                    console.error("Row match check error", err);
+                }
+            }, 600);
+        });
+
+        // Cleanup removed rows
+        Object.keys(debounceRefs.current).forEach(id => {
+            if (!currentIds.has(id)) {
+                clearTimeout(debounceRefs.current[id]);
+                delete debounceRefs.current[id];
+            }
+        });
+        
+        // Also cleanup states for removed rows
+        setRowMatches(prev => {
+            let changed = false;
+            const next = { ...prev };
+            Object.keys(next).forEach(id => {
+                if (!currentIds.has(id)) {
+                    delete next[id];
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+
+    }, [householdMembers, isOpen, skippedMatches]);
 
     useEffect(() => {
         if (formData.lgu && formData.barangay) {
@@ -291,7 +362,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
     // ── Event handlers (plain functions, no hooks) ──
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (isSaving) return;
+        if (isSavingRef.current || isSaving) return;
 
         // Check if household already exists when creating a new one
         if (isAddMode && formData.is_household_leader && formData.household_name) {
@@ -302,19 +373,20 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
             );
             
             if (exists) {
-                alert(`A household named "${formData.household_name}" already exists in ${formData.barangay}, ${formData.lgu}. Please search and select the existing household instead of creating a new one.`);
+                toast(`A household named "${formData.household_name}" already exists in ${formData.barangay}, ${formData.lgu}. Please search and select the existing household instead of creating a new one.`);
                 return;
             }
         }
 
         try {
+            isSavingRef.current = true;
             setIsSaving(true);
             const dataToSave = { ...formData, is_cooperative_member: true };
             // Pass extra household member rows when leader is being added
             const extras = (isAddMode && formData.is_household_leader && householdMembers.length > 0)
                 ? householdMembers
                 : undefined;
-            await onSave(dataToSave, extras);
+            await onSave(dataToSave, extras, isAddAnother);
             if (isAddAnother) {
                 // Reset form but retain household and location info
                 setFormData({
@@ -339,6 +411,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         } catch (error) {
             console.error('Failed to save:', error);
         } finally {
+            isSavingRef.current = false;
             setIsSaving(false);
         }
     };
@@ -362,6 +435,15 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 if (cleaned.length > 11) return row;
                 return { ...row, contact_number: formatContactNumber(value as string) };
             }
+            if (field === 'birthdate') {
+                let sector = row.sector;
+                if (value) {
+                    const age = Math.floor((Date.now() - new Date(value as string).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+                    if (age >= 60) sector = 'Senior Citizen';
+                    else if (sector === 'Senior Citizen' && age < 60) sector = 'General';
+                }
+                return { ...row, birthdate: value as string, sector };
+            }
             return { ...row, [field]: value };
         }));
     };
@@ -376,7 +458,7 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         setBulkVoterLastName(row?.lastname || '');
         setBulkVoterFirstName(row?.firstname || '');
         setBulkVoterMiddleName(row?.middlename || '');
-        setBulkVoterResults([]);
+        setBulkVoterResults(rowMatches[rowId] || []);
         setBulkSearchModalOpen(true);
     };
 
@@ -846,15 +928,32 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                                     ? formData.birth_date.toISOString().split('T')[0]
                                                     : String(formData.birth_date).split('T')[0])
                                                 : ''}
-                                            onChange={(e) =>
-                                                setFormData(prev => ({
-                                                    ...prev,
-                                                    birth_date: e.target.value ? new Date(e.target.value) : undefined,
-                                                    age: e.target.value
-                                                        ? Math.floor((Date.now() - new Date(e.target.value).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-                                                        : prev.age,
-                                                }))
-                                            }
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setFormData(prev => {
+                                                    let age = prev.age;
+                                                    let newSector = prev.sector || 'General';
+                                                    if (val) {
+                                                        age = Math.floor((Date.now() - new Date(val).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+                                                        const currentSectors = newSector.split(',').map(s => s.trim()).filter(Boolean);
+                                                        if (age >= 60) {
+                                                            let sectors = currentSectors.filter(s => s !== 'General' && s !== 'Senior Citizen');
+                                                            sectors.push('Senior Citizen');
+                                                            newSector = sectors.join(', ');
+                                                        } else if (age < 60 && currentSectors.includes('Senior Citizen')) {
+                                                            let sectors = currentSectors.filter(s => s !== 'Senior Citizen');
+                                                            if (sectors.length === 0) sectors = ['General'];
+                                                            newSector = sectors.join(', ');
+                                                        }
+                                                    }
+                                                    return {
+                                                        ...prev,
+                                                        birth_date: val ? new Date(val) : undefined,
+                                                        age,
+                                                        sector: newSector
+                                                    };
+                                                });
+                                            }}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                                         />
                                     </div>
@@ -1165,6 +1264,42 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                                         </button>
                                                     </div>
                                                 </div>
+
+                                                {/* Possible Match Banner */}
+                                                {rowMatches[row.id] && rowMatches[row.id].length > 0 && !row.is_voter && !skippedMatches[row.id] && (
+                                                    <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+                                                        <div className="flex items-start justify-between">
+                                                            <div className="flex items-start gap-3">
+                                                                <div className="p-1.5 bg-orange-100 rounded-full shrink-0">
+                                                                    <Info className="w-4 h-4 text-orange-600" />
+                                                                </div>
+                                                                <div>
+                                                                    <h3 className="text-sm font-bold text-orange-900 leading-tight">Possible voter match found!</h3>
+                                                                    <p className="text-xs text-orange-800 mt-0.5">
+                                                                        We found {rowMatches[row.id].length} record(s) matching "{row.firstname} {row.lastname}".
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleBulkSearchVoter(row.id)}
+                                                                    className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm"
+                                                                >
+                                                                    Review Matches
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSkippedMatches(prev => ({ ...prev, [row.id]: true }))}
+                                                                    className="p-1.5 text-orange-400 hover:text-orange-600 hover:bg-orange-100 rounded-md transition-colors"
+                                                                    title="Dismiss"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 {/* Fields Grid */}
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">

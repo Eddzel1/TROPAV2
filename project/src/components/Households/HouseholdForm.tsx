@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { Household, Location, Purok } from '../../types';
 import { X, Save } from 'lucide-react';
 import { supabaseHelpers } from '../../lib/supabase';
@@ -23,6 +24,7 @@ export function HouseholdForm({ household, locations, isOpen, onClose, onSave }:
     const [puroks, setPuroks] = useState<Purok[]>([]);
     const [loadingPuroks, setLoadingPuroks] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const isSavingRef = React.useRef(false);
 
     useEffect(() => {
         if (household) {
@@ -82,14 +84,17 @@ export function HouseholdForm({ household, locations, isOpen, onClose, onSave }:
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSavingRef.current || isSaving) return;
+        isSavingRef.current = true;
         setIsSaving(true);
         try {
             await onSave(household.id, formData);
             onClose();
         } catch (error) {
             console.error('Failed to save household:', error);
-            alert('Failed to update household.');
+            toast.error('Failed to update household.');
         } finally {
+            isSavingRef.current = false;
             setIsSaving(false);
         }
     };

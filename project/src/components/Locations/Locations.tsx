@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Header } from '../Layout/Header';
 import { LocationTable } from './LocationTable';
 import { LocationForm } from './LocationForm';
@@ -19,8 +20,8 @@ export function Locations({ locations, onCreateLocation, onUpdateLocation, onDel
   });
 
   const handleEdit = (location: Location) => { setEditingLocation(location); setIsFormOpen(true); };
-  const handleDelete = async (id: string) => { if (window.confirm('Are you sure you want to delete this location?')) { try { await onDeleteLocation(id); } catch { alert('Failed to delete location.'); } } };
-  const handleSave = async (locationData: Partial<Location>) => { try { if (editingLocation) { await onUpdateLocation(editingLocation.id, locationData); } else { await onCreateLocation(locationData as Omit<Location, 'id' | 'created_date' | 'updated_date'>); } setEditingLocation(undefined); } catch { alert('Failed to save location.'); } };
+  const handleDelete = async (id: string) => { if (window.confirm('Are you sure you want to delete this location?')) { try { await onDeleteLocation(id); } catch { toast.error('Failed to delete location.'); } } };
+  const handleSave = async (locationData: Partial<Location>) => { try { if (editingLocation) { await onUpdateLocation(editingLocation.id, locationData); } else { await onCreateLocation(locationData as Omit<Location, 'id' | 'created_date' | 'updated_date'>); } setEditingLocation(undefined); } catch { toast.error('Failed to save location.'); } };
 
   const uniqueLGUs = [...new Set(locations.map(l => l.lgu))];
 

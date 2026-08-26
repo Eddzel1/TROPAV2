@@ -1021,6 +1021,10 @@ export function useHouseholdsPaginated() {
     const [page, setPage] = useState(1);
     const limit = 8;
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchLastname, setSearchLastname] = useState('');
+    const [searchFirstname, setSearchFirstname] = useState('');
+    const [searchMiddlename, setSearchMiddlename] = useState('');
+    const [searchBy, setSearchBy] = useState<'household' | 'leader'>('household');
     const [filterLGU, setFilterLGU] = useState('');
     const [filterBarangay, setFilterBarangay] = useState('');
     const [filterPuroks, setFilterPuroks] = useState<string[]>([]);
@@ -1035,12 +1039,16 @@ export function useHouseholdsPaginated() {
                 page,
                 limit,
                 searchTerm,
+                searchLastname,
+                searchFirstname,
+                searchMiddlename,
                 filterLGU,
                 filterBarangay,
                 filterPuroks,
                 filterPurokIds,
                 sortField: sortField as string,
-                sortDirection
+                sortDirection,
+                searchBy
             });
 
             const transformedData: Household[] = data.map(transformHousehold);
@@ -1057,7 +1065,7 @@ export function useHouseholdsPaginated() {
 
     useEffect(() => {
         fetchHouseholds();
-    }, [page, limit, searchTerm, filterLGU, filterBarangay, filterPuroks, filterPurokIds, sortField, sortDirection]);
+    }, [page, limit, searchTerm, searchLastname, searchFirstname, searchMiddlename, filterLGU, filterBarangay, filterPuroks, filterPurokIds, sortField, sortDirection, searchBy]);
 
     return {
         households,
@@ -1069,6 +1077,14 @@ export function useHouseholdsPaginated() {
         limit,
         searchTerm,
         setSearchTerm,
+        searchLastname,
+        setSearchLastname,
+        searchFirstname,
+        setSearchFirstname,
+        searchMiddlename,
+        setSearchMiddlename,
+        searchBy,
+        setSearchBy,
         filterLGU,
         setFilterLGU,
         filterBarangay,

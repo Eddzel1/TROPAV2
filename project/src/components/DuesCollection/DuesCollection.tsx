@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { Header } from '../Layout/Header';
 import { PaymentTable } from './PaymentTable';
 import { PaymentForm } from './PaymentForm';
@@ -66,7 +67,7 @@ export function DuesCollection({ contributionRates, onCreatePayment, onUpdatePay
         refetchMetadata();
         refetchDuesStats();
       } catch (error) { 
-        alert('Failed to delete payment. Please try again.'); 
+        toast.error('Failed to delete payment. Please try again.'); 
       }
     }
   };
@@ -84,7 +85,7 @@ export function DuesCollection({ contributionRates, onCreatePayment, onUpdatePay
       refetchMetadata();
       refetchDuesStats();
     } catch (error) { 
-      alert('Failed to save payment.'); 
+      toast.error('Failed to save payment.'); 
     }
   };
 

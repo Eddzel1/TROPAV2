@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { Header } from '../Layout/Header';
 import { HouseholdTable } from './HouseholdTable';
 import { HouseholdView } from './HouseholdView';
@@ -54,7 +55,7 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
       refetchPaginated();
     } catch (error) {
       console.error('Failed to delete member:', error);
-      alert('Failed to delete member. Please try again.');
+      toast.error('Failed to delete member. Please try again.');
     }
   };
 
@@ -66,6 +67,14 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
     limit: itemsPerPage,
     searchTerm,
     setSearchTerm,
+    searchLastname,
+    setSearchLastname,
+    searchFirstname,
+    setSearchFirstname,
+    searchMiddlename,
+    setSearchMiddlename,
+    searchBy,
+    setSearchBy,
     filterLGU,
     setFilterLGU,
     filterBarangay,
@@ -86,7 +95,7 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this household?')) {
       try { await onDeleteHousehold(id); refetchPaginated(); }
-      catch (error) { alert('Failed to delete household. Please try again.'); }
+      catch (error) { toast.error('Failed to delete household. Please try again.'); }
     }
   };
 
@@ -102,10 +111,10 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
       ));
       setIsAddMemberOpen(false);
       setAddMemberHousehold(undefined);
-      alert('Members added to household successfully!');
+      toast.success('Members added to household successfully!');
     } catch (error) {
       console.error('Failed to save bulk members:', error);
-      alert('Failed to save some members. Please try again.');
+      toast.error('Failed to save some members. Please try again.');
     }
   };
 
@@ -175,10 +184,10 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
       setFilterPuroks([]);
       setPurokSearch('');
       refetchPaginated();
-      alert('Successfully updated purok for selected households!');
+      toast.success('Successfully updated purok for selected households!');
     } catch (error) {
       console.error('Failed to update bulk purok:', error);
-      alert('Failed to update some households. Please try again.');
+      toast.error('Failed to update some households. Please try again.');
     } finally {
       setIsUpdatingBulk(false);
     }
@@ -249,7 +258,7 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
   // Reset page to 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterLGU, filterBarangay, filterPuroks]);
+  }, [searchTerm, searchLastname, searchFirstname, searchMiddlename, searchBy, filterLGU, filterBarangay, filterPuroks]);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -288,75 +297,123 @@ export function Households({ households, locations, onCreateMember, onDeleteHous
             </div>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Search households..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-full" />
-          </div>
-          <div className="flex flex-wrap gap-4">
-            <select value={filterLGU} onChange={(e) => { setFilterLGU(e.target.value); setFilterBarangay(''); setFilterPuroks([]); setFilterPurokIds([]); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]">
-              <option value="">All LGUs</option>
-              {uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}
-            </select>
-            <select
-              value={filterBarangay}
-              onChange={(e) => { setFilterBarangay(e.target.value); setFilterPuroks([]); setFilterPurokIds([]); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 min-w-[150px]"
-            >
-              <option value="">All Barangays</option>
-              {formBarangays.map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-            <div className="relative">
-              <button
-                onClick={() => setIsPurokDropdownOpen(!isPurokDropdownOpen)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-56 bg-white text-left flex items-center justify-between"
-              >
-                <span className="truncate mr-2 text-sm">
-                  {filterPuroks.length === 0 ? 'All Puroks' : `${filterPuroks.length} Purok${filterPuroks.length > 1 ? 's' : ''} Selected`}
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
-              </button>
-              
-              {isPurokDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsPurokDropdownOpen(false)}></div>
-                  <div className="absolute z-20 top-full left-0 mt-1 w-full min-w-[240px] bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 flex flex-col">
-                    <div className="p-2 border-b border-gray-100">
-                      <div className="relative">
-                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search purok..."
-                          value={purokSearch}
-                          onChange={(e) => setPurokSearch(e.target.value)}
-                          className="pl-8 pr-2 py-1.5 w-full text-sm border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        />
-                      </div>
-                    </div>
-                    <div className="p-2 flex flex-col gap-1 overflow-y-auto">
-                      {filteredFormPuroks.map(p => (
-                        <label key={p} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer text-sm">
-                          <input
-                            type="checkbox"
-                            checked={filterPuroks.includes(p)}
-                            onChange={() => handleToggleFilterPurok(p)}
-                            className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
-                          />
-                          <span className="truncate">{p}</span>
-                        </label>
-                      ))}
-                      {filteredFormPuroks.length === 0 && (
-                        <div className="p-2 text-sm text-gray-500 text-center">No puroks found</div>
-                      )}
-                    </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex-1 w-full">
+              {searchBy === 'leader' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="text" placeholder="Last Name" value={searchLastname} onChange={(e) => setSearchLastname(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white w-full transition-colors text-sm" />
                   </div>
-                </>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="text" placeholder="First Name" value={searchFirstname} onChange={(e) => setSearchFirstname(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white w-full transition-colors text-sm" />
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input type="text" placeholder="Middle Name" value={searchMiddlename} onChange={(e) => setSearchMiddlename(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white w-full transition-colors text-sm" />
+                  </div>
+                </div>
+              ) : (
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" placeholder="Search households..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white w-full transition-colors text-sm" />
+                </div>
               )}
             </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-gray-100">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              <select value={filterLGU} onChange={(e) => { setFilterLGU(e.target.value); setFilterBarangay(''); setFilterPuroks([]); setFilterPurokIds([]); }}
+                className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm min-w-[140px]">
+                <option value="">All LGUs</option>
+                {uniqueLGUs.map(lgu => (<option key={lgu} value={lgu}>{lgu}</option>))}
+              </select>
+              <select
+                value={filterBarangay}
+                onChange={(e) => { setFilterBarangay(e.target.value); setFilterPuroks([]); setFilterPurokIds([]); }}
+                className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm min-w-[140px]"
+              >
+                <option value="">All Barangays</option>
+                {formBarangays.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+              <div className="relative">
+                <button
+                  onClick={() => setIsPurokDropdownOpen(!isPurokDropdownOpen)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 w-56 bg-gray-50 text-left flex items-center justify-between transition-colors hover:bg-gray-100"
+                >
+                  <span className="truncate mr-2 text-sm">
+                    {filterPuroks.length === 0 ? 'All Puroks' : `${filterPuroks.length} Purok${filterPuroks.length > 1 ? 's' : ''} Selected`}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                </button>
+                
+                {isPurokDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsPurokDropdownOpen(false)}></div>
+                    <div className="absolute z-20 top-full left-0 mt-1 w-full min-w-[240px] bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 flex flex-col">
+                      <div className="p-2 border-b border-gray-100">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search purok..."
+                            value={purokSearch}
+                            onChange={(e) => setPurokSearch(e.target.value)}
+                            className="pl-8 pr-2 py-1.5 w-full text-sm border border-gray-300 rounded focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="p-2 flex flex-col gap-1 overflow-y-auto">
+                        {filteredFormPuroks.map(p => (
+                          <label key={p} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer text-sm">
+                            <input
+                              type="checkbox"
+                              checked={filterPuroks.includes(p)}
+                              onChange={() => handleToggleFilterPurok(p)}
+                              className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+                            />
+                            <span className="truncate">{p}</span>
+                          </label>
+                        ))}
+                        {filteredFormPuroks.length === 0 && (
+                          <div className="p-2 text-sm text-gray-500 text-center">No puroks found</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={searchBy === 'leader'}
+                onChange={(e) => {
+                  setSearchBy(e.target.checked ? 'leader' : 'household');
+                  if (!e.target.checked) {
+                    setSearchLastname('');
+                    setSearchFirstname('');
+                    setSearchMiddlename('');
+                  } else {
+                    setSearchTerm('');
+                  }
+                }}
+                className="w-4 h-4 text-teal-600 rounded border-gray-300 focus:ring-teal-500 cursor-pointer"
+              />
+              <span className="text-sm font-medium text-gray-700 group-hover:text-teal-700 transition-colors">
+                Search by Household Leader
+              </span>
+            </label>
           </div>
         </div>
 
