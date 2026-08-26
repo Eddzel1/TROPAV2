@@ -215,14 +215,14 @@ export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: bool
         try {
             setLoading(true);
             const isFullFetch = !householdId && !hasCoordinatesOnly;
-            
+
             if (isFullFetch) {
                 if (globalMembersCache && (Date.now() - globalMembersTimestamp < CACHE_TTL)) {
                     setMembers(globalMembersCache);
                     setLoading(false);
                     return;
                 }
-                
+
                 if (!globalMembersPromise) {
                     console.log('Initiating global family members fetch...');
                     globalMembersPromise = supabaseHelpers.getFamilyMembers(householdId, hasCoordinatesOnly)
@@ -237,7 +237,7 @@ export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: bool
                             throw err;
                         });
                 }
-                
+
                 const transformedData = await globalMembersPromise;
                 setMembers(transformedData);
                 setError(null);
@@ -394,14 +394,14 @@ export function useDuesPayments(memberId?: string, householdId?: string, limit?:
         try {
             setLoading(true);
             const isFullFetch = !memberId && !householdId && !limit && !sinceMonth;
-            
+
             if (isFullFetch) {
                 if (globalPaymentsCache && (Date.now() - globalPaymentsTimestamp < CACHE_TTL)) {
                     setPayments(globalPaymentsCache);
                     setLoading(false);
                     return;
                 }
-                
+
                 if (!globalPaymentsPromise) {
                     console.log('Initiating global dues payments fetch...');
                     globalPaymentsPromise = supabaseHelpers.getDuesPayments(memberId, householdId, limit, sinceMonth)
@@ -416,7 +416,7 @@ export function useDuesPayments(memberId?: string, householdId?: string, limit?:
                             throw err;
                         });
                 }
-                
+
                 const transformedData = await globalPaymentsPromise;
                 setPayments(transformedData);
                 setError(null);
@@ -870,16 +870,16 @@ export function useDuesPaymentsPaginated(
             // Resolve member and household IDs for searching
             const matchingMemberIds = searchTerm
                 ? members
-                      .filter(m => `${m.firstname} ${m.lastname}`.toLowerCase().includes(searchTerm.toLowerCase()))
-                      .map(m => m.id)
-                      .slice(0, 100)
+                    .filter(m => `${m.firstname} ${m.lastname}`.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map(m => m.id)
+                    .slice(0, 100)
                 : [];
 
             const matchingHouseholdIds = searchTerm
                 ? households
-                      .filter(h => h.household_name.toLowerCase().includes(searchTerm.toLowerCase()))
-                      .map(h => h.id)
-                      .slice(0, 100)
+                    .filter(h => h.household_name.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map(h => h.id)
+                    .slice(0, 100)
                 : [];
 
             const { data, count: totalCount } = await supabaseHelpers.getDuesPaymentsPaginated({
@@ -1331,7 +1331,7 @@ export function useActivityLogs(filters?: { startDate?: string; endDate?: string
         try {
             setLoading(true);
             let query = (supabase as any).from('activity_logs').select('*', { count: 'exact' });
-            
+
             if (filters?.startDate) {
                 query = query.gte('created_at', filters.startDate);
             }
@@ -1343,17 +1343,17 @@ export function useActivityLogs(filters?: { startDate?: string; endDate?: string
             if (filters?.userId) {
                 query = query.eq('user_id', filters.userId);
             }
-            
+
             const page = filters?.page || 1;
             const limit = filters?.limit || 30;
             const from = (page - 1) * limit;
             const to = from + limit - 1;
-            
+
             const { data, error: sbError, count: totalCount } = await query
                 .order('created_at', { ascending: false })
                 .range(from, to);
             if (sbError) throw sbError;
-            
+
             const transformed: ActivityLog[] = ((data as any[]) || []).map((r: any) => ({
                 id: r.id,
                 user_id: r.user_id,
@@ -1364,7 +1364,7 @@ export function useActivityLogs(filters?: { startDate?: string; endDate?: string
                 details: r.details,
                 created_at: new Date(r.created_at)
             }));
-            
+
             setLogs(transformed);
             setCount(totalCount || 0);
             setError(null);
@@ -1451,4 +1451,4 @@ export function useFormTracking() {
         deleteForm
     };
 }
-
+
