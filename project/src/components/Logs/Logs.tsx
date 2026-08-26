@@ -1,13 +1,21 @@
 import { useState } from 'react';
 import { useActivityLogs } from '../../hooks/useSupabase';
 import { Menu, Activity } from 'lucide-react';
+import { User } from '../../types';
 
 interface LogsProps {
+  users: User[];
   onMenuClick: () => void;
 }
 
-export function Logs({ onMenuClick }: LogsProps) {
-  const { logs, loading } = useActivityLogs();
+export function Logs({ users, onMenuClick }: LogsProps) {
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [userId, setUserId] = useState<string>('');
+  const [page, setPage] = useState(1);
+  const limit = 30;
+  
+  const { logs, count, loading } = useActivityLogs({ startDate, endDate, userId, page, limit });
   const [filterAction, setFilterAction] = useState<string>('ALL');
 
   const filteredLogs = logs.filter(log => {
@@ -38,18 +46,51 @@ export function Logs({ onMenuClick }: LogsProps) {
       </header>
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="mb-6 flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Filter by Action:</label>
-          <select 
-            value={filterAction} 
-            onChange={(e) => setFilterAction(e.target.value)}
-            className="border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-          >
-            <option value="ALL">All Actions</option>
-            <option value="ADD">Additions</option>
-            <option value="EDIT">Edits</option>
-            <option value="DELETE">Deletions</option>
-          </select>
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
+            <select 
+              value={filterAction} 
+              onChange={(e) => setFilterAction(e.target.value)}
+              className="w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+            >
+              <option value="ALL">All Actions</option>
+              <option value="ADD">Additions</option>
+              <option value="EDIT">Edits</option>
+              <option value="DELETE">Deletions</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
+            <select 
+              value={userId} 
+              onChange={(e) => { setUserId(e.target.value); setPage(1); }}
+              className="w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+            >
+              <option value="">All Users</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.firstname} {u.lastname}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <input 
+              type="date"
+              value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+              className="w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+            <input 
+              type="date"
+              value={endDate}
+              onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+              className="w-full border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+            />
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -117,6 +158,27 @@ export function Logs({ onMenuClick }: LogsProps) {
               </tbody>
             </table>
           </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mt-4 p-4 flex items-center justify-between">
+          <div className="text-sm text-gray-700">
+            Showing <span className="font-medium">{count > 0 ? (page - 1) * limit + 1 : 0}</span> to <span className="font-medium">{Math.min(page * limit, count)}</span> of <span className="font-medium">{count}</span> logs
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={page * limit >= count}
+              className="px-3 py-1 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
         </div>
       </div>
     </div>

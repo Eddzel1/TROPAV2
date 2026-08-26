@@ -195,6 +195,16 @@ export function useHouseholds() {
     };
 }
 
+// Global cache for expensive full-table fetches
+let globalMembersCache: FamilyMember[] | null = null;
+let globalMembersPromise: Promise<FamilyMember[]> | null = null;
+let globalMembersTimestamp = 0;
+
+let globalPaymentsCache: DuesPayment[] | null = null;
+let globalPaymentsPromise: Promise<DuesPayment[]> | null = null;
+let globalPaymentsTimestamp = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Custom hook for family members
 export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: boolean) {
     const [members, setMembers] = useState<FamilyMember[]>([]);
@@ -204,14 +214,40 @@ export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: bool
     const fetchMembers = async () => {
         try {
             setLoading(true);
-            console.log('Fetching family members...');
-            const data = await supabaseHelpers.getFamilyMembers(householdId, hasCoordinatesOnly);
-            console.log('Raw family members data from Supabase:', data);
-            // Transform Supabase data to application types
-            const transformedData: FamilyMember[] = data.map(transformFamilyMember);
-            console.log('Transformed family members data:', transformedData);
-            setMembers(transformedData);
-            setError(null);
+            const isFullFetch = !householdId && !hasCoordinatesOnly;
+            
+            if (isFullFetch) {
+                if (globalMembersCache && (Date.now() - globalMembersTimestamp < CACHE_TTL)) {
+                    setMembers(globalMembersCache);
+                    setLoading(false);
+                    return;
+                }
+                
+                if (!globalMembersPromise) {
+                    console.log('Initiating global family members fetch...');
+                    globalMembersPromise = supabaseHelpers.getFamilyMembers(householdId, hasCoordinatesOnly)
+                        .then(data => {
+                            const transformed = data.map(transformFamilyMember);
+                            globalMembersCache = transformed;
+                            globalMembersTimestamp = Date.now();
+                            return transformed;
+                        })
+                        .catch(err => {
+                            globalMembersPromise = null;
+                            throw err;
+                        });
+                }
+                
+                const transformedData = await globalMembersPromise;
+                setMembers(transformedData);
+                setError(null);
+            } else {
+                console.log('Fetching partial family members...');
+                const data = await supabaseHelpers.getFamilyMembers(householdId, hasCoordinatesOnly);
+                const transformedData = data.map(transformFamilyMember);
+                setMembers(transformedData);
+                setError(null);
+            }
         } catch (err) {
             console.error('Error fetching family members:', err);
             setError(err instanceof Error ? err.message : 'An error occurred');
@@ -275,6 +311,8 @@ export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: bool
 
             // Transform the new member data
             const transformedMember = transformFamilyMember(finalMemberData);
+            globalMembersCache = null; // invalidate cache
+            globalMembersPromise = null;
             setMembers(prev => [transformedMember, ...prev]);
             return finalMemberData;
         } catch (err) {
@@ -293,6 +331,8 @@ export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: bool
             console.log('Updated member:', updatedMember);
             // Transform the updated member data
             const transformedMember = transformFamilyMember(updatedMember);
+            globalMembersCache = null; // invalidate cache
+            globalMembersPromise = null;
             setMembers(prev => prev.map(m => m.id === id ? transformedMember : m));
             return updatedMember;
         } catch (err) {
@@ -318,6 +358,8 @@ export function useFamilyMembers(householdId?: string, hasCoordinatesOnly?: bool
             }
 
             await supabaseHelpers.deleteFamilyMember(id);
+            globalMembersCache = null; // invalidate cache
+            globalMembersPromise = null;
             setMembers(prev => prev.filter(m => m.id !== id));
             console.log('Member deleted successfully');
         } catch (err) {
@@ -351,11 +393,39 @@ export function useDuesPayments(memberId?: string, householdId?: string, limit?:
     const fetchPayments = async () => {
         try {
             setLoading(true);
-            const data = await supabaseHelpers.getDuesPayments(memberId, householdId, limit, sinceMonth);
-            // Transform Supabase data to application types
-            const transformedData: DuesPayment[] = data.map(transformDuesPayment);
-            setPayments(transformedData);
-            setError(null);
+            const isFullFetch = !memberId && !householdId && !limit && !sinceMonth;
+            
+            if (isFullFetch) {
+                if (globalPaymentsCache && (Date.now() - globalPaymentsTimestamp < CACHE_TTL)) {
+                    setPayments(globalPaymentsCache);
+                    setLoading(false);
+                    return;
+                }
+                
+                if (!globalPaymentsPromise) {
+                    console.log('Initiating global dues payments fetch...');
+                    globalPaymentsPromise = supabaseHelpers.getDuesPayments(memberId, householdId, limit, sinceMonth)
+                        .then(data => {
+                            const transformed = data.map(transformDuesPayment);
+                            globalPaymentsCache = transformed;
+                            globalPaymentsTimestamp = Date.now();
+                            return transformed;
+                        })
+                        .catch(err => {
+                            globalPaymentsPromise = null;
+                            throw err;
+                        });
+                }
+                
+                const transformedData = await globalPaymentsPromise;
+                setPayments(transformedData);
+                setError(null);
+            } else {
+                const data = await supabaseHelpers.getDuesPayments(memberId, householdId, limit, sinceMonth);
+                const transformedData = data.map(transformDuesPayment);
+                setPayments(transformedData);
+                setError(null);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
         } finally {
@@ -370,6 +440,8 @@ export function useDuesPayments(memberId?: string, householdId?: string, limit?:
             console.log('Created payment:', newPayment);
             // Transform the new payment data
             const transformedPayment: DuesPayment = transformDuesPayment(newPayment);
+            globalPaymentsCache = null; // invalidate cache
+            globalPaymentsPromise = null;
             setPayments(prev => [transformedPayment, ...prev]);
             return newPayment;
         } catch (err) {
@@ -386,6 +458,8 @@ export function useDuesPayments(memberId?: string, householdId?: string, limit?:
             console.log('Updated payment:', updatedPayment);
             // Transform the updated payment data
             const transformedPayment: DuesPayment = transformDuesPayment(updatedPayment);
+            globalPaymentsCache = null; // invalidate cache
+            globalPaymentsPromise = null;
             setPayments(prev => prev.map(p => p.id === id ? transformedPayment : p));
             return updatedPayment;
         } catch (err) {
@@ -399,6 +473,8 @@ export function useDuesPayments(memberId?: string, householdId?: string, limit?:
         try {
             console.log('Deleting payment:', id);
             await supabaseHelpers.deleteDuesPayment(id);
+            globalPaymentsCache = null; // invalidate cache
+            globalPaymentsPromise = null;
             setPayments(prev => prev.filter(p => p.id !== id));
             console.log('Payment deleted successfully');
         } catch (err) {
@@ -1245,19 +1321,37 @@ export function useOfficers(locationId?: string, purokId?: string) {
     };
 }
 
-export function useActivityLogs() {
+export function useActivityLogs(filters?: { startDate?: string; endDate?: string; userId?: string; page?: number; limit?: number }) {
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [count, setCount] = useState(0);
 
     const fetchLogs = async () => {
         try {
             setLoading(true);
-            const { data, error: sbError } = await (supabase as any)
-                .from('activity_logs')
-                .select('*')
+            let query = (supabase as any).from('activity_logs').select('*', { count: 'exact' });
+            
+            if (filters?.startDate) {
+                query = query.gte('created_at', filters.startDate);
+            }
+            if (filters?.endDate) {
+                const end = new Date(filters.endDate);
+                end.setDate(end.getDate() + 1);
+                query = query.lt('created_at', end.toISOString());
+            }
+            if (filters?.userId) {
+                query = query.eq('user_id', filters.userId);
+            }
+            
+            const page = filters?.page || 1;
+            const limit = filters?.limit || 30;
+            const from = (page - 1) * limit;
+            const to = from + limit - 1;
+            
+            const { data, error: sbError, count: totalCount } = await query
                 .order('created_at', { ascending: false })
-                .limit(100);
+                .range(from, to);
             if (sbError) throw sbError;
             
             const transformed: ActivityLog[] = ((data as any[]) || []).map((r: any) => ({
@@ -1272,6 +1366,7 @@ export function useActivityLogs() {
             }));
             
             setLogs(transformed);
+            setCount(totalCount || 0);
             setError(null);
         } catch (err) {
             console.error('Error fetching activity logs:', err);
@@ -1283,9 +1378,9 @@ export function useActivityLogs() {
 
     useEffect(() => {
         fetchLogs();
-    }, []);
+    }, [filters?.startDate, filters?.endDate, filters?.userId, filters?.page, filters?.limit]);
 
-    return { logs, loading, error, refetch: fetchLogs };
+    return { logs, loading, error, refetch: fetchLogs, count };
 }
 
 export function useFormTracking() {

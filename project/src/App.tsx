@@ -220,6 +220,7 @@ function App() {
       case 'logs':
         return (
           <Logs
+            users={users}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );

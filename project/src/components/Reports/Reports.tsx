@@ -22,14 +22,13 @@ export function Reports({ locations, contributionRates, onMenuClick, households:
   // Fetch data lazily – only when Reports is mounted (user navigated to this page)
   const { members: fetchedMembers, loading: membersLoading } = useFamilyMembers();
   const { payments: fetchedPayments, loading: paymentsLoading } = useDuesPayments();
-  const { households: fetchedHouseholds, loading: householdsLoading } = useHouseholds();
   
-  const isLoading = membersLoading || paymentsLoading || householdsLoading;
+  const isLoading = membersLoading || paymentsLoading;
 
   // Use fetched data; fall back to passed props if somehow both are available
   const members = fetchedMembers.length > 0 ? fetchedMembers : (membersProp || []);
   const payments = fetchedPayments.length > 0 ? fetchedPayments : (paymentsProp || []);
-  const households = fetchedHouseholds.length > 0 ? fetchedHouseholds : (householdsProp || []);
+  const households = householdsProp || [];
   const [activeTab, setActiveTab] = useState('membership');
   const [dateRange, setDateRange] = useState({ startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0] });
 

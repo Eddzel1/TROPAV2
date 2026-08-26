@@ -15,16 +15,30 @@ export function FormTrackingPage({ locations, onMenuClick }: FormTrackingProps) 
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingForm, setEditingForm] = useState<FormTracking | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filterLgu, setFilterLgu] = useState('');
+  const [filterBarangay, setFilterBarangay] = useState('');
+  const [filterPurok, setFilterPurok] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  const lgus = Array.from(new Set(locations.map(l => l.lgu))).sort();
+  const barangays = locations
+    .filter(l => !filterLgu || l.lgu === filterLgu)
+    .map(l => l.barangay)
+    .sort();
+  const puroks = Array.from(new Set(forms
+    .filter(f => !filterBarangay || f.barangay === filterBarangay)
+    .map(f => f.purok)
+    .filter(Boolean)
+  )).sort();
+
   const filteredForms = forms.filter(form => {
-    const matchesSearch = 
-      form.barangay.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      form.purok.toLowerCase().includes(searchTerm.toLowerCase());
+    const formLgu = locations.find(l => l.barangay === form.barangay)?.lgu || '';
+    const matchesLgu = filterLgu ? formLgu === filterLgu : true;
+    const matchesBarangay = filterBarangay ? form.barangay === filterBarangay : true;
+    const matchesPurok = filterPurok ? form.purok === filterPurok : true;
     const matchesStatus = statusFilter ? form.status === statusFilter : true;
-    return matchesSearch && matchesStatus;
+    return matchesLgu && matchesBarangay && matchesPurok && matchesStatus;
   });
 
   type PurokGroup = { barangay: string; purok: string; forms: FormTracking[]; totalForms: number };
@@ -158,20 +172,52 @@ export function FormTrackingPage({ locations, onMenuClick }: FormTrackingProps) 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by Barangay or Purok..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
-              />
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <select
+                value={filterLgu}
+                onChange={(e) => {
+                  setFilterLgu(e.target.value);
+                  setFilterBarangay('');
+                  setFilterPurok('');
+                }}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md"
+              >
+                <option value="">All LGUs</option>
+                {lgus.map(lgu => (
+                  <option key={lgu} value={lgu}>{lgu}</option>
+                ))}
+              </select>
+              
+              <select
+                value={filterBarangay}
+                onChange={(e) => {
+                  setFilterBarangay(e.target.value);
+                  setFilterPurok('');
+                }}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md"
+              >
+                <option value="">All Barangays</option>
+                {barangays.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+
+              <select
+                value={filterPurok}
+                onChange={(e) => setFilterPurok(e.target.value)}
+                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md"
+              >
+                <option value="">All Puroks</option>
+                {puroks.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </div>
+            
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="block w-full sm:w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md"
+              className="block w-full sm:w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm rounded-md flex-shrink-0"
             >
               <option value="">All Statuses</option>
               <option value="Pending">Pending</option>
