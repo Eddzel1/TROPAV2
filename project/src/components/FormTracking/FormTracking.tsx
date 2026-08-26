@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Menu, FileText, CheckCircle, Clock, Undo2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, Menu, FileText, CheckCircle, Clock, Undo2, ChevronDown, ChevronRight } from 'lucide-react';
 import { FormTrackingModal } from './FormTrackingModal';
 import { useFormTracking, useAuthProfile } from '../../hooks/useSupabase';
 import { FormTracking, Location } from '../../types';

@@ -7,7 +7,7 @@ import { SectorReport } from './SectorReport';
 import { ExportReport } from './ExportReport';
 import { Household, FamilyMember, DuesPayment, Location, ContributionRate } from '../../types';
 import { Users, CreditCard, MapPin, PieChart, Download, Calendar, TrendingUp } from 'lucide-react';
-import { useFamilyMembers, useDuesPayments, useHouseholds } from '../../hooks/useSupabase';
+import { useFamilyMembers, useDuesPayments } from '../../hooks/useSupabase';
 
 interface ReportsProps {
   households: Household[];
