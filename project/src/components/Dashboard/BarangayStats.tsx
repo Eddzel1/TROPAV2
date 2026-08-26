@@ -50,13 +50,13 @@ export function BarangayStats({ households }: BarangayStatsProps) {
                 <td className="py-3 text-right text-gray-600">
                   <div className="flex items-center justify-end gap-1">
                     <Home className="w-4 h-4 text-gray-400" />
-                    {data.households}
+                    {data.households.toLocaleString()}
                   </div>
                 </td>
                 <td className="py-3 text-right text-gray-600">
                   <div className="flex items-center justify-end gap-1">
                     <Users className="w-4 h-4 text-gray-400" />
-                    {data.members}
+                    {data.members.toLocaleString()}
                   </div>
                 </td>
               </tr>

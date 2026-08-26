@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Global base font-size adjustment */
+html {
+  font-size: 14px;
+}

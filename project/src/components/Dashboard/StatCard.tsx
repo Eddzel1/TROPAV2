@@ -33,7 +33,7 @@ export function StatCard({ title, value, icon: Icon, color, trend }: StatCardPro
       </div>
       
       <div className="relative z-10">
-        <h3 className="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">{value}</h3>
+        <h3 className="text-xl font-bold text-gray-900 tracking-tight">{typeof value === 'number' ? value.toLocaleString() : value}</h3>
         {trend && (
           <div className={`mt-2 text-xs lg:text-sm font-medium ${trend.isPositive ? 'text-green-600' : 'text-red-600'} flex items-center gap-1`}>
             {trend.isPositive ? '↑' : '↓'} {trend.value}% from last month
