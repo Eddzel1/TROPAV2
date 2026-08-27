@@ -184,6 +184,7 @@ function App() {
       case 'tropafinder':
         return (
           <TropaFinder
+            locations={locations}
             onMenuClick={() => setSidebarOpen(true)}
           />
         );

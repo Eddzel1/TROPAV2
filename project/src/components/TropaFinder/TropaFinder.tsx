@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Header } from '../Layout/Header';
 import { supabase } from '../../lib/supabase';
 import { useAuthProfile } from '../../hooks/useSupabase';
-import { User } from '../../types';
+import { User, Location } from '../../types';
 import {
   Search,
   ChevronLeft,
@@ -49,6 +49,7 @@ type SortField = 'lastname' | 'firstname' | 'middlename' | 'lgu' | 'brgy' | 'sta
 type SortDir = 'asc' | 'desc';
 
 interface TropaFinderProps {
+  locations?: Location[];
   onMenuClick: () => void;
 }
 
@@ -487,7 +488,7 @@ function BlocklistViewModal({ voter, entry, onClose, onEdit }: BlocklistViewModa
 
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function TropaFinder({ onMenuClick }: TropaFinderProps) {
+export function TropaFinder({ locations, onMenuClick }: TropaFinderProps) {
   const { profile: currentUser } = useAuthProfile();
   const isAdmin = currentUser?.role === 'admin';
 
@@ -512,33 +513,72 @@ export function TropaFinder({ onMenuClick }: TropaFinderProps) {
   const [blocklist, setBlocklist] = useState<Map<number, BlocklistEntry>>(new Map());
   const [modalVoter, setModalVoter] = useState<Voter | null>(null);
 
+  const [dbLocations, setDbLocations] = useState<Location[]>(locations || []);
   const [barangays, setBarangays] = useState<string[]>([]);
-  const [lgus] = useState<string[]>([
-    'BAUNGON', 'CABANGLASAN', 'DAMULOG', 'DANCAGAN', 'DANGCAGAN',
-    'DON CARLOS', 'IMPASUG-ONG', 'KADINGILAN', 'KADINGILIAN',
-    'KALILANGAN', 'KIBAWE', 'KITAOTAO', 'LANTAPAN', 'LIBONA',
-    'MALAYBALAY CITY', 'MANOLO FORTICH', 'MARAMAG', 'PANGANTUCAN',
-    'QUEZON', 'SAN FERNANDO', 'SUMILAO', 'TALAKAG', 'VALENCIA CITY',
-  ]);
 
+  // Fetch locations table from Supabase DB (or use prop if provided)
+  useEffect(() => {
+    if (locations && locations.length > 0) {
+      setDbLocations(locations);
+      return;
+    }
+    let isMounted = true;
+    async function fetchLocations() {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('*')
+        .order('lgu', { ascending: true })
+        .order('barangay', { ascending: true });
 
-  // Fetch barangays when LGU changes
+      if (!error && data && isMounted) {
+        setDbLocations(
+          data.map((row) => ({
+            id: row.id,
+            lgu: row.lgu,
+            barangay: row.barangay,
+            created_date: new Date(row.created_date || ''),
+            updated_date: new Date(row.updated_date || ''),
+            created_by: row.created_by || '',
+          }))
+        );
+      }
+    }
+    fetchLocations();
+    return () => {
+      isMounted = false;
+    };
+  }, [locations]);
+
+  // Derive unique LGUs directly from locations table
+  const lgus = useMemo(() => {
+    const set = new Set<string>();
+    dbLocations.forEach((loc) => {
+      if (loc.lgu && loc.lgu.trim()) {
+        set.add(loc.lgu.trim().toUpperCase());
+      }
+    });
+    return Array.from(set).sort();
+  }, [dbLocations]);
+
+  // Derive Barangays for selected LGU directly from locations table
   useEffect(() => {
     setFilterBrgy('');
-    if (!filterLgu) { setBarangays([]); return; }
-    supabase
-      .from('voters')
-      .select('brgy')
-      .ilike('lgu', filterLgu)
-      .not('brgy', 'is', null)
-      .order('brgy', { ascending: true })
-      .then(({ data }) => {
-        if (data) {
-          const unique = [...new Set(data.map((r) => r.brgy as string).filter(Boolean))].sort();
-          setBarangays(unique);
+    if (!filterLgu) {
+      setBarangays([]);
+      return;
+    }
+
+    const set = new Set<string>();
+    dbLocations
+      .filter((loc) => loc.lgu && loc.lgu.trim().toUpperCase() === filterLgu.trim().toUpperCase())
+      .forEach((loc) => {
+        if (loc.barangay && loc.barangay.trim()) {
+          set.add(loc.barangay.trim().toUpperCase());
         }
       });
-  }, [filterLgu]);
+
+    setBarangays(Array.from(set).sort());
+  }, [filterLgu, dbLocations]);
 
   // Fetch blocklist entries for current visible voters
   const fetchBlocklist = useCallback(async (voterIds: number[]) => {

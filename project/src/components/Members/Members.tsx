@@ -5,7 +5,7 @@ import { MemberTable } from './MemberTable';
 // TS server force refresh
 import { MemberForm, HouseholdMemberRow } from './MemberForm';
 import { FamilyMember, Household, Location } from '../../types';
-import { Plus, Search, Users, UserCheck, Shield, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Users, Shield, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFamilyMembersPaginated, useDashboardStats } from '../../hooks/useSupabase';
 import { supabase, supabaseHelpers } from '../../lib/supabase';
 
@@ -202,11 +202,10 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
     <div className="flex-1 bg-gray-50 min-h-0 overflow-auto">
       <Header title="Members" subtitle="Manage family members and cooperative membership" onMenuClick={onMenuClick} />
       <div className="p-4 lg:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Total Members</p><p className="text-2xl font-bold text-gray-900">{stats.totalMembers}</p></div><div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center"><Users className="w-6 h-6 text-white" /></div></div></div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Cooperative Members</p><p className="text-2xl font-bold text-gray-900">{stats.activeMembers}</p><p className="text-xs text-gray-500">{stats.totalMembers > 0 ? Math.round((stats.activeMembers / stats.totalMembers) * 100) : 0}% of total</p></div><div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center"><UserCheck className="w-6 h-6 text-white" /></div></div></div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Household Leaders</p><p className="text-2xl font-bold text-gray-900">{stats.totalLeaders}</p></div><div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center"><Shield className="w-6 h-6 text-white" /></div></div></div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Registered Voters</p><p className="text-2xl font-bold text-gray-900">{stats.totalVoters}</p><p className="text-xs text-gray-500">{stats.totalMembers > 0 ? Math.round((stats.totalVoters / stats.totalMembers) * 100) : 0}% of total</p></div><div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center"><Calendar className="w-6 h-6 text-white" /></div></div></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Total Members</p><p className="text-2xl font-bold text-gray-900">{stats.totalMembers.toLocaleString()}</p></div><div className="w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center"><Users className="w-6 h-6 text-white" /></div></div></div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Household Leaders</p><p className="text-2xl font-bold text-gray-900">{stats.totalLeaders.toLocaleString()}</p></div><div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center"><Shield className="w-6 h-6 text-white" /></div></div></div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"><div className="flex items-center justify-between"><div><p className="text-sm font-medium text-gray-600 mb-1">Registered Voters</p><p className="text-2xl font-bold text-gray-900">{stats.totalVoters.toLocaleString()}</p><p className="text-xs text-gray-500">{stats.totalMembers > 0 ? Math.round((stats.totalVoters / stats.totalMembers) * 100) : 0}% of total</p></div><div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center"><Calendar className="w-6 h-6 text-white" /></div></div></div>
         </div>
         <div className="flex flex-col gap-3 mb-6">
           {/* Name search row */}
@@ -258,14 +257,14 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
             <button onClick={() => setIsFormOpen(true)} className="flex items-center justify-center gap-2 px-4 py-3 lg:py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-lg transition-colors touch-manipulation text-base lg:text-sm font-medium"><Plus className="w-4 h-4" />Add Member</button>
           </div>
         </div>
-        <div className="mb-4"><p className="text-sm lg:text-base text-gray-600">Showing {filteredCount} matching out of {stats.totalMembers} total members</p></div>
+        <div className="mb-4"><p className="text-sm lg:text-base text-gray-600">Showing {filteredCount.toLocaleString()} matching out of {stats.totalMembers.toLocaleString()} total members</p></div>
         <MemberTable members={paginatedMembers} onEdit={handleEdit} onDelete={async (id) => { await handleDelete(id); refetchPaginated(); }} />
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredCount)}</span> of <span className="font-medium">{filteredCount}</span> members
+              Showing <span className="font-medium">{((currentPage - 1) * itemsPerPage + 1).toLocaleString()}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredCount).toLocaleString()}</span> of <span className="font-medium">{filteredCount.toLocaleString()}</span> members
             </p>
             <div className="flex items-center gap-2">
               <button

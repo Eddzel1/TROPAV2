@@ -153,7 +153,7 @@ export const supabaseHelpers = {
   async createHousehold(household: Omit<Database['public']['Tables']['households']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
     const { data, error } = await supabase.from('households').insert(household).select().single();
     if (error) throw error;
-    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'HOUSEHOLD', entity_id: data.id, details: { household_name: data.household_name } });
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'HOUSEHOLD', entity_id: data.id, details: { household_name: data.household_name, barangay: data.barangay } });
     return data;
   },
 
@@ -179,7 +179,7 @@ export const supabaseHelpers = {
       }
     }
 
-    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'HOUSEHOLD', entity_id: id, details: { household_name: data.household_name, ...updates } });
+    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'HOUSEHOLD', entity_id: id, details: { household_name: data.household_name, barangay: data.barangay, ...updates } });
     return data;
   },
 
@@ -306,7 +306,7 @@ export const supabaseHelpers = {
   async createFamilyMember(member: Omit<Database['public']['Tables']['family_members']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
     const { data, error } = await supabase.from('family_members').insert(member).select().single();
     if (error) throw error;
-    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'MEMBER', entity_id: data.id, details: { firstname: data.firstname, lastname: data.lastname } });
+    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'MEMBER', entity_id: data.id, details: { firstname: data.firstname, lastname: data.lastname, barangay: data.barangay } });
     return data;
   },
 
@@ -314,7 +314,7 @@ export const supabaseHelpers = {
     const { data, error } = await supabase.from('family_members').update(updates).eq('id', id).select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error(`Family member with id ${id} not found`);
-    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'MEMBER', entity_id: id, details: { firstname: data.firstname, lastname: data.lastname, ...updates } });
+    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'MEMBER', entity_id: id, details: { firstname: data.firstname, lastname: data.lastname, barangay: data.barangay, ...updates } });
     return data;
   },
 
