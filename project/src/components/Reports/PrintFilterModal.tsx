@@ -97,10 +97,10 @@ export function PrintFilterModal({ mode, households, members, payments, contribu
     return locationFilteredHouseholds.filter(h => selectedHouseholdIds.has(h.id));
   }, [locationFilteredHouseholds, specificHouseholdsEnabled, selectedHouseholdIds]);
 
-  const filteredMembers = useMemo(() =>
-    members.filter((m) => finalHouseholds.some((h) => h.id === m.household_id)),
-    [members, finalHouseholds]
-  );
+  const filteredMembers = useMemo(() => {
+    const finalHouseholdIds = new Set(finalHouseholds.map(h => h.id));
+    return members.filter((m) => m.household_id && finalHouseholdIds.has(m.household_id));
+  }, [members, finalHouseholds]);
 
   const coopCount = filteredMembers.filter((m) => m.is_cooperative_member).length;
 

@@ -168,7 +168,6 @@ function App() {
           <Reports
             households={households}
             members={[]}
-            payments={[]}
             locations={locations}
             contributionRates={contributionRates}
             onMenuClick={() => setSidebarOpen(true)}

@@ -5,7 +5,8 @@ import { MemberTable } from './MemberTable';
 // TS server force refresh
 import { MemberForm, HouseholdMemberRow } from './MemberForm';
 import { FamilyMember, Household, Location } from '../../types';
-import { Plus, Search, Users, Shield, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Users, Shield, Calendar, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
+import { MemberPrintModal } from './MemberPrintModal';
 import { useFamilyMembersPaginated, useDashboardStats } from '../../hooks/useSupabase';
 import { supabase, supabaseHelpers } from '../../lib/supabase';
 
@@ -23,6 +24,7 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingMember, setEditingMember] = React.useState<FamilyMember | undefined>();
   const [filterHousehold, setFilterHousehold] = React.useState('');
+  const [isPrintOpen, setIsPrintOpen] = React.useState(false);
 
   const { stats } = useDashboardStats();
 
@@ -254,6 +256,7 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
             <select value={filterSector} onChange={(e) => setFilterSector(e.target.value)} className="px-3 py-3 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-base lg:text-sm"><option value="">All Sectors</option>{uniqueSectors.map(sector => (<option key={sector} value={sector}>{sector}</option>))}</select>
             <select value={filterHousehold} onChange={(e) => setFilterHousehold(e.target.value)} className="px-3 py-3 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-base lg:text-sm"><option value="">All Households</option>{uniqueHouseholds.map(household => (<option key={household.id} value={household.id}>{household.name}</option>))}</select>
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-3 lg:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-base lg:text-sm"><option value="">All Status</option><option value="member">Cooperative Members</option><option value="non-member">Non-members</option><option value="leader">Household Leaders</option><option value="voter">Registered Voters</option></select>
+            <button onClick={() => setIsPrintOpen(true)} className="flex items-center justify-center gap-2 px-4 py-3 lg:py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 rounded-lg transition-colors touch-manipulation text-base lg:text-sm font-medium"><Printer className="w-4 h-4" />Print Members</button>
             <button onClick={() => setIsFormOpen(true)} className="flex items-center justify-center gap-2 px-4 py-3 lg:py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-lg transition-colors touch-manipulation text-base lg:text-sm font-medium"><Plus className="w-4 h-4" />Add Member</button>
           </div>
         </div>
@@ -302,6 +305,7 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
           </div>
         )}
       </div>
+      {isPrintOpen && <MemberPrintModal households={households} onClose={() => setIsPrintOpen(false)} />}
       <MemberForm member={editingMember} households={households} locations={locations} isOpen={isFormOpen} onClose={() => { setIsFormOpen(false); setEditingMember(undefined); }} onSave={handleSave} />
     </div>
   );

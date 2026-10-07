@@ -381,7 +381,12 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
         try {
             isSavingRef.current = true;
             setIsSaving(true);
-            const dataToSave = { ...formData, is_cooperative_member: true };
+            const dataToSave = { 
+                ...formData, 
+                is_cooperative_member: true,
+                phic_member: !!formData.phic_member,
+                phic_no: formData.phic_member ? (formData.phic_no || '') : ''
+            };
             // Pass extra household member rows when leader is being added
             const extras = (isAddMode && formData.is_household_leader && householdMembers.length > 0)
                 ? householdMembers

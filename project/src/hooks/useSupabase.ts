@@ -44,6 +44,8 @@ export function transformFamilyMember(row: any): FamilyMember {
         contact_number: row.contact_number || undefined,
         is_household_leader: row.is_household_leader,
         is_cooperative_member: row.is_cooperative_member,
+        phic_member: row.phic_member ?? false,
+        phic_no: row.phic_no || undefined,
         membership_date: row.membership_date ? new Date(row.membership_date) : undefined,
         birth_date: row.birth_date ? new Date(row.birth_date) : undefined,
         age: row.age || undefined,
