@@ -39,6 +39,8 @@ export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
                       ))}
                       {member.is_cooperative_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Member</span>}
                       {member.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}
+                      {member.phic_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">PhilHealth</span>}
+                      {member.trucare_member && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">TRU Care</span>}
                     </div>
                     {member.contact_number && <div className="flex items-center gap-2 mt-2 text-sm text-gray-600"><Phone className="w-3 h-3" /><a href={`tel:${member.contact_number}`} className="text-teal-600">{member.contact_number}</a></div>}
                   </div>
@@ -56,7 +58,7 @@ export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
       {/* Desktop Table View */}
       <div className="hidden lg:block overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="text-left p-4 text-sm font-semibold text-gray-900">Member</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Location</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Sector</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Status</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Contact</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Actions</th></tr></thead>
+          <thead className="bg-gray-50 border-b border-gray-100"><tr><th className="text-left p-4 text-sm font-semibold text-gray-900">Member</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Location</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Sector</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Status</th><th className="text-center p-4 text-sm font-semibold text-gray-900">TRU Care</th><th className="text-center p-4 text-sm font-semibold text-gray-900">PhilHealth</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Contact</th><th className="text-left p-4 text-sm font-semibold text-gray-900">Actions</th></tr></thead>
           <tbody>
             {members.map((member) => (
               <tr key={member.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
@@ -75,6 +77,8 @@ export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
                 </td>
                 <td className="p-4"><div className="flex flex-wrap gap-1">{member.sector?.split(',').map(s => s.trim()).filter(Boolean).map(sector => (<span key={sector} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${sectorColors[sector] || 'bg-gray-100 text-gray-700'}`}>{sector}</span>))}</div></td>
                 <td className="p-4"><div className="space-y-1"><div className="flex items-center gap-2"><span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${member.is_cooperative_member ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{member.is_cooperative_member ? 'Member' : 'Non-member'}</span></div>{member.is_voter && <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Voter</span>}</div></td>
+                <td className="p-4 text-center">{member.trucare_member ? <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Yes</span> : <span className="text-sm text-gray-300">—</span>}</td>
+                <td className="p-4 text-center">{member.phic_member ? <div className="flex flex-col items-center gap-0.5"><span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">Yes</span>{member.phic_no && <span className="text-[10px] text-gray-500">{member.phic_no}</span>}</div> : <span className="text-sm text-gray-300">—</span>}</td>
                 <td className="p-4">{member.contact_number ? <div className="flex items-center gap-2 text-sm text-gray-600"><Phone className="w-4 h-4" />{member.contact_number}</div> : <span className="text-sm text-gray-400">No contact</span>}</td>
                 <td className="p-4"><div className="flex items-center gap-2"><button onClick={() => onEdit(member)} className="p-2 text-gray-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button><button onClick={() => onDelete(member.id)} className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button></div></td>
               </tr>

@@ -12,6 +12,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
+const logUserNameCache = new Map<string, string>();
+
 export const supabaseHelpers = {
   async uploadProfilePicture(file: File, memberId: string): Promise<{ path: string; url: string }> {
     const filePath = generateProfileImagePath(memberId, file.name);
@@ -306,15 +308,25 @@ export const supabaseHelpers = {
   async createFamilyMember(member: Omit<Database['public']['Tables']['family_members']['Insert'], 'id' | 'created_date' | 'updated_date'>) {
     const { data, error } = await supabase.from('family_members').insert(member).select().single();
     if (error) throw error;
-    await supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'MEMBER', entity_id: data.id, details: { firstname: data.firstname, lastname: data.lastname, barangay: data.barangay } });
+    void supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'MEMBER', entity_id: data.id, details: { firstname: data.firstname, lastname: data.lastname, barangay: data.barangay } });
     return data;
+  },
+
+  async createFamilyMembersBulk(members: Omit<Database['public']['Tables']['family_members']['Insert'], 'id' | 'created_date' | 'updated_date'>[]) {
+    if (members.length === 0) return [];
+    const { data, error } = await supabase.from('family_members').insert(members).select('id, firstname, lastname, barangay');
+    if (error) throw error;
+    (data || []).forEach(d => {
+      void supabaseHelpers.logActivity({ action: 'ADD', entity_type: 'MEMBER', entity_id: d.id, details: { firstname: d.firstname, lastname: d.lastname, barangay: d.barangay } });
+    });
+    return data || [];
   },
 
   async updateFamilyMember(id: string, updates: Database['public']['Tables']['family_members']['Update']) {
     const { data, error } = await supabase.from('family_members').update(updates).eq('id', id).select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error(`Family member with id ${id} not found`);
-    await supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'MEMBER', entity_id: id, details: { firstname: data.firstname, lastname: data.lastname, barangay: data.barangay, ...updates } });
+    void supabaseHelpers.logActivity({ action: 'EDIT', entity_type: 'MEMBER', entity_id: id, details: { firstname: data.firstname, lastname: data.lastname, barangay: data.barangay, ...updates } });
     return data;
   },
 
@@ -851,8 +863,13 @@ export const supabaseHelpers = {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       
-      const { data: userData } = await supabase.from('users').select('firstname, lastname').eq('email', session.user.email || '').single();
-      const user_name = userData ? `${userData.firstname} ${userData.lastname}` : (session.user.email || 'Unknown User');
+      const email = session.user.email || '';
+      let user_name = logUserNameCache.get(email);
+      if (!user_name) {
+        const { data: userData } = await supabase.from('users').select('firstname, lastname').eq('email', email).maybeSingle();
+        user_name = userData ? `${userData.firstname} ${userData.lastname}` : (email || 'Unknown User');
+        logUserNameCache.set(email, user_name);
+      }
       
       const { error } = await supabase.from('activity_logs').insert({
         user_id: session.user.id,

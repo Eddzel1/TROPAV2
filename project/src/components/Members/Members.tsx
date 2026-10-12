@@ -90,8 +90,8 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
     try {
       let created_by = 'unknown';
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) created_by = user.email;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email) created_by = session.user.email;
       } catch (e) {
         console.error("Failed to fetch user email:", e);
       }
@@ -154,12 +154,11 @@ export function Members({ households, locations, onMenuClick }: Omit<MembersProp
             membership_date: row.membership_date || membershipDateStr,
             phic_member: row.phic_member || false,
             phic_no: row.phic_no || '',
+            trucare_member: row.trucare_member || false,
             created_by
           }));
-        // Create each extra member
-        for (const row of memberRows) {
-          await supabaseHelpers.createFamilyMember(row as any);
-        }
+        // Insert all extra members in a single request
+        await supabaseHelpers.createFamilyMembersBulk(memberRows as any);
       }
 
       setEditingMember(undefined);

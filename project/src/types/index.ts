@@ -49,6 +49,7 @@ export interface FamilyMember {
   profile_picture_path?: string;
   phic_member?: boolean;
   phic_no?: string;
+  trucare_member?: boolean;
   created_date: Date;
   updated_date: Date;
   created_by?: string;

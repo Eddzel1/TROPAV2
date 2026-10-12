@@ -19,6 +19,7 @@ export interface HouseholdMemberRow {
     is_cooperative_member: boolean;
     phic_member: boolean;
     phic_no: string;
+    trucare_member: boolean;
 }
 
 const generateTempId = () => Math.random().toString(36).substr(2, 9);
@@ -37,6 +38,7 @@ const createEmptyMemberRow = (defaultMembershipDate?: string): HouseholdMemberRo
     is_cooperative_member: true,
     phic_member: false,
     phic_no: '',
+    trucare_member: false,
 });
 
 const formatContactNumber = (value: string) => {
@@ -76,6 +78,7 @@ const emptyForm: Partial<FamilyMember> & { household_name?: string } = {
     is_cooperative_member: true,
     phic_member: false,
     phic_no: '',
+    trucare_member: false,
     membership_date: undefined,
 };
 
@@ -385,7 +388,8 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 ...formData, 
                 is_cooperative_member: true,
                 phic_member: !!formData.phic_member,
-                phic_no: formData.phic_member ? (formData.phic_no || '') : ''
+                phic_no: formData.phic_member ? (formData.phic_no || '') : '',
+                trucare_member: !!formData.trucare_member
             };
             // Pass extra household member rows when leader is being added
             const extras = (isAddMode && formData.is_household_leader && householdMembers.length > 0)
@@ -1021,19 +1025,27 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                         )}
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                    <div>
-                                        <label className="flex items-center gap-2 cursor-pointer mt-6">
-                                            <input
-                                                type="checkbox"
-                                                name="phic_member"
-                                                checked={!!formData.phic_member}
-                                                onChange={handleInputChange}
-                                                className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
-                                            />
-                                            <span className="text-sm font-medium text-gray-700">PhilHealth Member</span>
-                                        </label>
-                                    </div>
+                                <div className="flex flex-col gap-3 mt-4 md:w-1/2">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            name="trucare_member"
+                                            checked={!!formData.trucare_member}
+                                            onChange={handleInputChange}
+                                            className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">TRU Care Member</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            name="phic_member"
+                                            checked={!!formData.phic_member}
+                                            onChange={handleInputChange}
+                                            className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">PhilHealth Member</span>
+                                    </label>
                                     {formData.phic_member && (
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">PhilHealth Number</label>
@@ -1387,7 +1399,11 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                                                     <div>
                                                         <label className="block text-xs font-medium text-gray-500 mb-1 font-sans">PhilHealth (PHIC)</label>
                                                         <div className="flex flex-col gap-1">
-                                                            <label className="flex items-center gap-1.5 cursor-pointer text-sm h-[38px]">
+                                                            <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                                                                <input type="checkbox" checked={!!row.trucare_member} onChange={e => updateHouseholdMemberRow(row.id, 'trucare_member', e.target.checked)} className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded" />
+                                                                <span className="text-xs font-medium text-gray-700 whitespace-nowrap">TRU Care</span>
+                                                            </label>
+                                                            <label className="flex items-center gap-1.5 cursor-pointer text-sm">
                                                                 <input type="checkbox" checked={!!row.phic_member} onChange={e => updateHouseholdMemberRow(row.id, 'phic_member', e.target.checked)} className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded" />
                                                                 <span className="text-xs font-medium text-gray-700 whitespace-nowrap">PHIC Member</span>
                                                             </label>

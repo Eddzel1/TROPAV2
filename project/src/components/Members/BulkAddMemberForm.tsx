@@ -26,6 +26,7 @@ interface MemberRow {
     voter_id?: number;
     phic_member?: boolean;
     phic_no?: string;
+    trucare_member?: boolean;
 }
 
 const generateTempId = () => Math.random().toString(36).substr(2, 9);
@@ -45,6 +46,7 @@ const createEmptyRow = (householdLastname?: string): MemberRow => ({
     voter_id: undefined,
     phic_member: false,
     phic_no: '',
+    trucare_member: false,
 });
 
 // Format contact number as 09XX-XXX-XXXX
@@ -176,6 +178,9 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
             if (field === 'phic_member') {
                 return { ...row, phic_member: value === 'true', phic_no: value === 'false' ? '' : row.phic_no };
             }
+            if (field === 'trucare_member') {
+                return { ...row, trucare_member: value === 'true' };
+            }
 
             let finalValue = value;
             if (field === 'contact_number') {
@@ -287,6 +292,7 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                 membership_date: r.membership_date ? new Date(r.membership_date) : new Date(),
                 phic_member: r.phic_member || false,
                 phic_no: r.phic_no || '',
+                trucare_member: r.trucare_member || false,
             }));
 
             await onSave(membersToSave);
@@ -521,6 +527,15 @@ export function BulkAddMemberForm({ household, isOpen, onClose, onSave }: BulkAd
                                                         className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                                                     />
                                                     <span className="text-xs font-medium text-gray-700 whitespace-nowrap">PHIC Member</span>
+                                                </label>
+                                                <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!row.trucare_member}
+                                                        onChange={e => handleChange(row.id, 'trucare_member', e.target.checked ? 'true' : 'false')}
+                                                        className="w-3.5 h-3.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                                    />
+                                                    <span className="text-xs font-medium text-gray-700 whitespace-nowrap">TRU Care</span>
                                                 </label>
                                                 {row.phic_member && (
                                                     <input

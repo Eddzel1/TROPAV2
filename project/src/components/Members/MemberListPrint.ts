@@ -80,7 +80,7 @@ export function printMemberList({
 
   // ── columns ──────────────────────────────────────────────────────────────
   const extraHeaders = leadersOnly ? '<th class="th-md">LOCATION</th>' : '';
-  const COLS = (isTreasurer ? 13 : 8) + (leadersOnly ? 1 : 0);
+  const COLS = (isTreasurer ? 13 : 9) + (leadersOnly ? 1 : 0);
 
   const theadHTML = isTreasurer
     ? `<thead><tr>
@@ -97,6 +97,7 @@ export function printMemberList({
         <th class="th-xs">VOTER</th>
         <th class="th-xs">TROPA</th>
         <th class="th-md">PHILHEALTH NO.</th>
+        <th class="th-xs">TRU CARE</th>
       </tr></thead>`;
 
   const monthCells = MONTH_INITIALS.map((_i, idx) => {
@@ -106,7 +107,7 @@ export function printMemberList({
 
   function dataCells(m: FamilyMember | null): string {
     if (isTreasurer) return monthCells;
-    if (!m) return '<td></td>'.repeat(7);
+    if (!m) return '<td></td>'.repeat(8);
     const phic = m.phic_no || (m.phic_member ? 'YES' : '');
     return `
       <td class="c">${fmtDate(m.birth_date)}</td>
@@ -115,7 +116,8 @@ export function printMemberList({
       <td class="l">${esc(m.contact_number || '')}</td>
       <td class="c">${m.is_voter ? '&#10003;' : ''}</td>
       <td class="c">&#10003;</td>
-      <td class="l">${esc(phic)}</td>`;
+      <td class="l">${esc(phic)}</td>
+      <td class="c">${m.trucare_member ? '&#10003;' : ''}</td>`;
   }
 
   function memberRow(m: FamilyMember | null, i: number, hh?: Household): string {
