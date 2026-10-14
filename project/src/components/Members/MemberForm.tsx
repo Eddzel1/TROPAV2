@@ -397,16 +397,21 @@ export function MemberForm({ member, households, locations, isOpen, onClose, onS
                 : undefined;
             await onSave(dataToSave, extras, isAddAnother);
             if (isAddAnother) {
-                // Reset form but retain household and location info
+                // Reset form but retain location info. Only keep the household when an
+                // existing one was selected; a newly created household name must not carry over.
+                const keepHousehold = !formData.is_household_leader && !!formData.household_id;
                 setFormData({
                     ...emptyForm,
-                    household_id: formData.household_id,
-                    household_name: formData.household_name,
+                    household_id: keepHousehold ? formData.household_id : '',
+                    household_name: keepHousehold ? formData.household_name : '',
                     lgu: formData.lgu,
                     barangay: formData.barangay,
                     purok: formData.purok,
+                    purok_id: formData.purok_id,
+                    membership_date: formData.membership_date,
                     is_household_leader: false
                 });
+                if (!keepHousehold) setHouseholdSearch('');
                 setVoterLastName('');
                 setVoterFirstName('');
                 setVoterMiddleName('');
